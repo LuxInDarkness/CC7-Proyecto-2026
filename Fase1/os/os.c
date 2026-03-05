@@ -1,4 +1,4 @@
-#include "os/dirs.h"
+#include "os.h"
 
 typedef struct REG_ACCESS
 {
@@ -29,14 +29,10 @@ void os_init_regs(struct REG_ACCESS *regs) {
     regs->UART0_BASE = 0x101F1000;
     regs->UART_THR = regs->UART0_BASE + 0x00; // Equivalent to UART_DR
     regs->UART_LSR = regs->UART0_BASE + 0x18; // Equivalent to UART_FR
-    regs->UART_LSR_THRE = 0x20;
-    regs->UART_LSR_RXFE = 0x10;
 #else
     regs->UART0_BASE = 0x44E09000;
     regs->UART_THR = regs->UART0_BASE + 0x00;
     regs->UART_LSR = regs->UART0_BASE + 0x14;
-    regs->UART_LSR_THRE = 0x20;
-    regs->UART_LSR_RXFE = 0x10;
     regs->DMTIMER2_BASE = 0x48040000;
     regs->TCLR = regs->DMTIMER2_BASE + 0x38;
     regs->TCRR = regs->DMTIMER2_BASE + 0x3C;
@@ -51,7 +47,23 @@ void os_init_regs(struct REG_ACCESS *regs) {
     regs->CM_PER_TIMER2_CLKCTRL = regs->CM_PER_BASE + 0x80;
 #endif
 
+    // Initialize UART Line Status Register bits
+    regs->UART_LSR_THRE = 0x20;
+    regs->UART_LSR_RXFE = 0x10;
+
 }
+
+typedef struct PCB {
+    // Process Control Block structure (can be expanded as needed)
+    int pid; // Process ID
+    // Add more fields as necessary (e.g., state, registers, etc.)
+} PCB;
+
+typedef struct TCB {
+    // Thread Control Block structure (can be expanded as needed)
+    int tid; // Thread ID
+    // Add more fields as necessary (e.g., state, registers, etc.)
+} TCB;
 
 // ============================================================================
 // UART Functions

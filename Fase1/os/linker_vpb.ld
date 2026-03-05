@@ -2,7 +2,7 @@ ENTRY(_start)
 
 MEMORY
 {
-    ram : ORIGIN = 0x82000000, LENGTH = 256K
+    ram (rwx) : ORIGIN = 0x00000000, LENGTH = 64M
 }
 
 SECTIONS
@@ -11,11 +11,12 @@ SECTIONS
 
     .text :
     {
+        KEEP(*(.vectors))
         *(.text*)
         *(.rodata*)
     } > ram
 
-    .data : AT(ADDR(.text) + SIZEOF(.text))
+    .data :
     {
         __data_start__ = .;
         *(.data*)
