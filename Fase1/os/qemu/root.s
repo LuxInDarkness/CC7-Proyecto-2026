@@ -22,7 +22,6 @@ reset_handler:
     ldr sp, =_stack_top
     
     // Set up exception vector table base address (VBAR - Vector Base Address Register)
-
     ldr r0, =vector_table
     mcr p15, 0, r0, c12, c0, 0
     
@@ -46,7 +45,13 @@ data_handler:
     b hang
 
 irq_handler:
-    b hang
+    sub   lr, lr, #4          @ Adjust return address
+    stmfd sp!, {r0-r12, lr}   @ Save context
+
+    bl timer_irq_handler      @ Call C handler
+
+    ldmfd sp!, {r0-r12, lr}   @ Restore context
+    subs  pc, lr, #4          @ Return from IRQ
 
 fiq_handler:
     b hang
@@ -60,6 +65,14 @@ PUT32:
 .globl GET32
 GET32:
     ldr r0, [r0]
+    bx lr
+
+// Enable IRQs by clearing the I bit in the CPSR
+.globl enable_irq
+enable_irq:
+    mrs r0, cpsr
+    bic r0, r0, #0x80
+    msr cpsr_c, r0
     bx lr
 
 // Stack space allocation

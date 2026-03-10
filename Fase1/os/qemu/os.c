@@ -25,29 +25,9 @@ typedef struct REG_ACCESS
 
 void os_init_regs(struct REG_ACCESS *regs) {
 
-#if defined(PLATFORM_VERSATILEPB)
     regs->UART0_BASE = 0x101F1000;
     regs->UART_THR = regs->UART0_BASE + 0x00; // Equivalent to UART_DR
     regs->UART_LSR = regs->UART0_BASE + 0x18; // Equivalent to UART_FR
-#else
-    regs->UART0_BASE = 0x44E09000;
-    regs->UART_THR = regs->UART0_BASE + 0x00;
-    regs->UART_LSR = regs->UART0_BASE + 0x14;
-    regs->DMTIMER2_BASE = 0x48040000;
-    regs->TCLR = regs->DMTIMER2_BASE + 0x38;
-    regs->TCRR = regs->DMTIMER2_BASE + 0x3C;
-    regs->TISR = regs->DMTIMER2_BASE + 0x28;
-    regs->TIER = regs->DMTIMER2_BASE + 0x2C;
-    regs->TLDR = regs->DMTIMER2_BASE + 0x40;
-    regs->INTCPS_BASE = 0x48200000;
-    regs->INTC_MIR_CLEAR2 = regs->INTCPS_BASE + 0xC8;
-    regs->INTC_CONTROL = regs->INTCPS_BASE + 0x48;
-    regs->INTC_ILR68 = regs->INTCPS_BASE + 0x110;
-    regs->CM_PER_BASE = 0x44E00000;
-    regs->CM_PER_TIMER2_CLKCTRL = regs->CM_PER_BASE + 0x80;
-#endif
-
-    // Initialize UART Line Status Register bits
     regs->UART_LSR_THRE = 0x20;
     regs->UART_LSR_RXFE = 0x10;
 

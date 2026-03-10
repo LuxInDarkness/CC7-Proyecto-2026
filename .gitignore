@@ -1,0 +1,5 @@
+#ignore this files and directories
+*.pdf
+*.bin
+
+#dont ignore these files and directories
