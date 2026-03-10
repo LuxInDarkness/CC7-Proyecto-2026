@@ -8,7 +8,9 @@ int main() {
     while (1) {
         for (int i = 0; i < 26; i++) {
             char_value = alpha2int("a") + i; // Convert 'a' to its integer value and add i
-            os_write(int2alpha(char_value, buffer)); // Convert back to char and print
+            buffer[0] = int2alpha(char_value, buffer);
+            buffer[1] = '\0'; // Null terminate the string
+            print("----From P2: %s----\n", buffer);
             sleep(0.1); // Sleep for 0.1 seconds
         }
     }
