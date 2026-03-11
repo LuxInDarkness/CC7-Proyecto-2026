@@ -23,19 +23,3 @@ void os_init_regs(int address) {
     ACCESS->UART_LSR_THRE = 0x20;
     ACCESS->UART_LSR_RXFE = 0x10;
 }
-
-// ============================================================================
-// UART Functions
-// ============================================================================
-
-void uart_putc(char c) {
-    // Wait until Transmit Holding Register is empty
-    while ((GET32(ACCESS->UART_LSR) & ACCESS->UART_LSR_THRE) == 0);
-    PUT32(ACCESS->UART_THR, c);
-}
-
-char uart_getc(void) {
-    // Wait until data is available
-    while ((GET32(ACCESS->UART_LSR) & ACCESS->UART_LSR_RXFE) != 0);
-    return (char)(GET32(ACCESS->UART_THR) & 0xFF);
-}
