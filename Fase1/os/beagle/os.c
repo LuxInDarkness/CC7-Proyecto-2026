@@ -2,6 +2,10 @@
 
 REG_ACCESS *ACCESS;
 
+int main() {
+    return 0;
+}
+
 void os_init_regs(int address) {
     // Allocate memory for the REG_ACCESS structure
     ACCESS = (REG_ACCESS *)address;

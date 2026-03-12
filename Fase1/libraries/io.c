@@ -47,7 +47,7 @@ void os_write_num(unsigned int num) {
     uart_putc('\n');
 }
 
-// Simple function to convert string to integer
+// Convert a string representing an integer to an actual integer
 int alpha2int(const char *s) {
     int num = 0;
     int sign = 1;
@@ -66,6 +66,7 @@ int alpha2int(const char *s) {
     return sign * num;
 }
 
+// Convert a string representing a float to an actual float
 float alpha2float(const char *s) {
     float num = 0;
     float sign = 1;
@@ -93,7 +94,7 @@ float alpha2float(const char *s) {
     return sign * num;
 }
 
-// Function to convert integer to string
+// Convert an integer to a string representation of that integer
 char * int2alpha(int num, char *buffer) {
     int i = 0;
     int is_negative = 0;
@@ -134,6 +135,7 @@ char * int2alpha(int num, char *buffer) {
     return buffer;
 }
 
+// Convert a float to a string representation of that float
 char * float2alpha(float num, char *buffer) {
     int i = 0;
     int is_negative = 0;

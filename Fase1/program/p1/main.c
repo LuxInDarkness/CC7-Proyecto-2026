@@ -1,6 +1,10 @@
 #include "../../libraries/io.h"
 #include "../../libraries/time.h"
 
+void timer_irq_handler() {
+    // Stub implementation - not used in p1
+}
+
 int main() {
     // Print 0-9 infinite times
     while (1) {

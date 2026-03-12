@@ -34,62 +34,45 @@ mkdir -p bin
 echo "Assembling os/root.s..."
 arm-none-eabi-as -o bin/root.o root/$FOLDER/root.s
 
-echo "Compiling uart library..."
-arm-none-eabi-gcc -g -c \
-    -ffreestanding -nostdlib -nostartfiles \
-    -Wall -O1 \
-    -I os \
-    -o bin/uart.o os/$FOLDER/uart.c
+echo "Compiling all relevant C files..."
+declare -A FILES=(
+    ["os/$FOLDER/os.c"]="os"
+    ["os/$FOLDER/uart.c"]="uart"
+    ["libraries/io.c"]="io"
+    ["libraries/time.c"]="time"
+    ["program/p1/main.c"]="p1"
+    ["program/p2/main.c"]="p2"
+)
 
-echo "Compiling IO library..."
-arm-none-eabi-gcc -g -c \
-    -ffreestanding -nostdlib -nostartfiles \
-    -Wall -O1 \
-    -I libraries \
-    -o bin/io.o libraries/io.c
+for FILE in "${!FILES[@]}"; do
+    OUT="${FILES[$FILE]}"
+    echo "Compiling $FILE -> bin/$OUT.o..."
+    arm-none-eabi-gcc -g -c \
+        -ffreestanding -nostdlib -nostartfiles \
+        -Wall -O1 \
+        -I os \
+        -I libraries \
+        -o bin/$OUT.o $FILE
+done
 
-echo "Compiling time library..."
-arm-none-eabi-gcc -g -c \
-    -ffreestanding -nostdlib -nostartfiles \
-    -Wall -O1 \
-    -I libraries \
-    -o bin/time.o libraries/time.c
+declare -A TO_LINK=(
+    ["bin/p1.o"]="program/$FOLDER/linker_p1.ld"
+    ["bin/p2.o"]="program/$FOLDER/linker_p2.ld"
+    ["bin/os.o"]="os/$FOLDER/linker.ld"
+)
 
-echo "Compiling program/p1/main.c..."
-arm-none-eabi-gcc -g -c \
-    -ffreestanding -nostdlib -nostartfiles \
-    -Wall -O1 \
-    -I program/p1 \
-    -I libraries \
-    -o bin/p1.o program/p1/main.c
+echo "Linking all relevant object files..."
+for OBJ in "${!TO_LINK[@]}"; do
+    echo "Linking: $OBJ for ${TO_LINK[$OBJ]}"
+    arm-none-eabi-gcc -nostartfiles -T "${TO_LINK[$OBJ]}" \
+        -o "${OBJ%.o}.elf" \
+        bin/root.o bin/io.o bin/time.o bin/uart.o $OBJ
+done
 
-echo "Compiling program/p2/main.c..."
-arm-none-eabi-gcc -g -c \
-    -ffreestanding -nostdlib -nostartfiles \
-    -Wall -O1 \
-    -I program/p2 \
-    -I libraries \
-    -o bin/p2.o program/p2/main.c
-
-echo "Compiling os/$FOLDER/os.c..."
-arm-none-eabi-gcc -g -c \
-    -ffreestanding -nostdlib -nostartfiles \
-    -Wall -O1 \
-    -I os \
-    -o bin/os.o os/$FOLDER/os.c
-
-echo "Linking object files for p1 compilation..."
-arm-none-eabi-gcc -nostartfiles -T "program/$FOLDER/linker_p1.ld" \
-    -o bin/program_p1.elf \
-    bin/root.o bin/p1.o bin/io.o bin/time.o bin/uart.o bin/os.o
-
-echo "Linking object files for p2 compilation..."
-arm-none-eabi-gcc -nostartfiles -T "program/$FOLDER/linker_p2.ld" \
-    -o bin/program_p2.elf \
-    bin/root.o bin/p2.o bin/io.o bin/time.o bin/uart.o bin/os.o
-
-echo "Converting ELF to binary..."
-arm-none-eabi-objcopy -O binary bin/program_p2.elf bin/program_p2.bin
+echo "Converting ELFs to binary..."
+for ELF in bin/*.elf; do
+    arm-none-eabi-objcopy -O binary "$ELF" "${ELF%.elf}.bin"
+done
 
 echo "Running Program..."
-qemu-system-arm $RUN_FLAGS -kernel bin/program_p2.elf
+qemu-system-arm $RUN_FLAGS -kernel bin/p2.elf
