@@ -23,3 +23,9 @@ void os_init_regs(int address) {
     ACCESS->UART_LSR_THRE = 0x20;
     ACCESS->UART_LSR_RXFE = 0x10;
 }
+
+void timer_irq_handler() {
+    // Clear the timer interrupt
+    *(volatile unsigned int *)(ACCESS->TISR) = 0x1; // Clear the interrupt status
+    // Additional code to handle the timer interrupt can be added here
+}

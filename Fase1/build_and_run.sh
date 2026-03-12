@@ -12,20 +12,17 @@ cd "$SCRIPT_DIR"
 # Determine platform based on argument
 if [ "$#" -ne "0" ]; then
     if [ "$1" == "1" ]; then
-        echo "Using VersatilePB platform..."
-        LINKER="linker_vpb.ld"
-        VPB_FLAG="-D PLATFORM_VERSATILEPB"
+        echo "Using Qemu platform..."
+        FOLDER="qemu"
         RUN_FLAGS="-M versatilepb -nographic -gdb tcp::5000"
     else
-        echo "Using default platform (BeagleBone Black)..."
-        LINKER="linker_bbb.ld"
-        VPB_FLAG=""
+        echo "Using BeagleBone Black platform..."
+        FOLDER="beagle"
         RUN_FLAGS="-M beagle -nographic"
     fi
 else
     echo "No platform specified, defaulting to BeagleBone Black..."
-    LINKER="linker_bbb.ld"
-    VPB_FLAG=""
+    FOLDER="beagle"
     RUN_FLAGS="-M beagle -nographic"
 fi
 
@@ -35,23 +32,64 @@ rm -f bin/*.o bin/program.elf bin/program.bin
 mkdir -p bin
 
 echo "Assembling os/root.s..."
-arm-none-eabi-as -o bin/root.o os/root.s
+arm-none-eabi-as -o bin/root.o root/$FOLDER/root.s
 
-echo "Compiling os/os.c..."
+echo "Compiling uart library..."
 arm-none-eabi-gcc -g -c \
-    $VPB_FLAG \
     -ffreestanding -nostdlib -nostartfiles \
-    -Wall -O2 \
+    -Wall -O1 \
     -I os \
-    -o bin/os.o os/os.c
+    -o bin/uart.o os/$FOLDER/uart.c
 
-echo "Linking object files..."
-arm-none-eabi-gcc -nostartfiles -T $LINKER \
-    -o bin/program.elf \
-    bin/root.o bin/os.o
+echo "Compiling IO library..."
+arm-none-eabi-gcc -g -c \
+    -ffreestanding -nostdlib -nostartfiles \
+    -Wall -O1 \
+    -I libraries \
+    -o bin/io.o libraries/io.c
+
+echo "Compiling time library..."
+arm-none-eabi-gcc -g -c \
+    -ffreestanding -nostdlib -nostartfiles \
+    -Wall -O1 \
+    -I libraries \
+    -o bin/time.o libraries/time.c
+
+echo "Compiling program/p1/main.c..."
+arm-none-eabi-gcc -g -c \
+    -ffreestanding -nostdlib -nostartfiles \
+    -Wall -O1 \
+    -I program/p1 \
+    -I libraries \
+    -o bin/p1.o program/p1/main.c
+
+echo "Compiling program/p2/main.c..."
+arm-none-eabi-gcc -g -c \
+    -ffreestanding -nostdlib -nostartfiles \
+    -Wall -O1 \
+    -I program/p2 \
+    -I libraries \
+    -o bin/p2.o program/p2/main.c
+
+echo "Compiling os/$FOLDER/os.c..."
+arm-none-eabi-gcc -g -c \
+    -ffreestanding -nostdlib -nostartfiles \
+    -Wall -O1 \
+    -I os \
+    -o bin/os.o os/$FOLDER/os.c
+
+echo "Linking object files for p1 compilation..."
+arm-none-eabi-gcc -nostartfiles -T "program/$FOLDER/linker_p1.ld" \
+    -o bin/program_p1.elf \
+    bin/root.o bin/p1.o bin/io.o bin/time.o bin/uart.o bin/os.o
+
+echo "Linking object files for p2 compilation..."
+arm-none-eabi-gcc -nostartfiles -T "program/$FOLDER/linker_p2.ld" \
+    -o bin/program_p2.elf \
+    bin/root.o bin/p2.o bin/io.o bin/time.o bin/uart.o bin/os.o
 
 echo "Converting ELF to binary..."
-arm-none-eabi-objcopy -O binary bin/program.elf bin/program.bin
+arm-none-eabi-objcopy -O binary bin/program_p2.elf bin/program_p2.bin
 
 echo "Running Program..."
-qemu-system-arm $RUN_FLAGS -kernel bin/program.elf
+qemu-system-arm $RUN_FLAGS -kernel bin/program_p2.elf
