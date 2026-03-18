@@ -28,51 +28,53 @@ fi
 
 # Remove previous compiled objects and binaries
 echo "Cleaning up previous build files..."
-rm -f bin/*.o bin/program.elf bin/program.bin
+rm -f bin/*.o bin/*.elf bin/*.bin
 mkdir -p bin
 
-echo "Assembling os/root.s..."
-arm-none-eabi-as -o bin/root.o root/$FOLDER/root.s
+COMMON_CFLAGS="-g -c -ffreestanding -nostdlib -nostartfiles -Wall -O1 -I os -I libraries"
 
-echo "Compiling all relevant C files..."
-declare -A FILES=(
-    ["os/$FOLDER/os.c"]="os"
-    ["os/$FOLDER/uart.c"]="uart"
-    ["libraries/io.c"]="io"
-    ["libraries/time.c"]="time"
-    ["program/p1/main.c"]="p1"
-    ["program/p2/main.c"]="p2"
-)
+echo "Building OS image..."
+arm-none-eabi-as -o bin/os_root.o root/$FOLDER/root.s
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/os.o os/$FOLDER/os.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/os_uart.o os/$FOLDER/uart.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/os_io.o libraries/io.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/os_time.o libraries/time.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/os_pcb.o os/pcb.c
 
-for FILE in "${!FILES[@]}"; do
-    OUT="${FILES[$FILE]}"
-    echo "Compiling $FILE -> bin/$OUT.o..."
-    arm-none-eabi-gcc -g -c \
-        -ffreestanding -nostdlib -nostartfiles \
-        -Wall -O1 \
-        -I os \
-        -I libraries \
-        -o bin/$OUT.o $FILE
-done
+arm-none-eabi-gcc -nostartfiles -T "os/$FOLDER/linker.ld" \
+    -o bin/os.elf \
+    bin/os_root.o bin/os_io.o bin/os_time.o bin/os_uart.o bin/os_pcb.o bin/os.o
+arm-none-eabi-objcopy -O binary bin/os.elf bin/os.bin
 
-declare -A TO_LINK=(
-    ["bin/p1.o"]="program/$FOLDER/linker_p1.ld"
-    ["bin/p2.o"]="program/$FOLDER/linker_p2.ld"
-    ["bin/os.o"]="os/$FOLDER/linker.ld"
-)
+echo "Building P1 image..."
+arm-none-eabi-as -o bin/p1_start.o program/program_start.s
+arm-none-eabi-as -o bin/p1_mmio.o libraries/mmio.s
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/p1_main.o program/p1/main.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/p1_uart.o os/$FOLDER/uart.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/p1_io.o libraries/io.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/p1_time.o libraries/time.c
 
-echo "Linking all relevant object files..."
-for OBJ in "${!TO_LINK[@]}"; do
-    echo "Linking: $OBJ for ${TO_LINK[$OBJ]}"
-    arm-none-eabi-gcc -nostartfiles -T "${TO_LINK[$OBJ]}" \
-        -o "${OBJ%.o}.elf" \
-        bin/root.o bin/io.o bin/time.o bin/uart.o $OBJ
-done
+arm-none-eabi-gcc -nostartfiles -T "program/$FOLDER/linker_p1.ld" \
+    -o bin/p1.elf \
+    bin/p1_start.o bin/p1_mmio.o bin/p1_main.o bin/p1_uart.o bin/p1_io.o bin/p1_time.o
+arm-none-eabi-objcopy -O binary bin/p1.elf bin/p1.bin
 
-echo "Converting ELFs to binary..."
-for ELF in bin/*.elf; do
-    arm-none-eabi-objcopy -O binary "$ELF" "${ELF%.elf}.bin"
-done
+echo "Building P2 image..."
+arm-none-eabi-as -o bin/p2_start.o program/program_start.s
+arm-none-eabi-as -o bin/p2_mmio.o libraries/mmio.s
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/p2_main.o program/p2/main.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/p2_uart.o os/$FOLDER/uart.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/p2_io.o libraries/io.c
+arm-none-eabi-gcc $COMMON_CFLAGS -o bin/p2_time.o libraries/time.c
 
-echo "Running Program..."
-qemu-system-arm $RUN_FLAGS -kernel bin/p2.elf
+arm-none-eabi-gcc -nostartfiles -T "program/$FOLDER/linker_p2.ld" \
+    -o bin/p2.elf \
+    bin/p2_start.o bin/p2_mmio.o bin/p2_main.o bin/p2_uart.o bin/p2_io.o bin/p2_time.o
+arm-none-eabi-objcopy -O binary bin/p2.elf bin/p2.bin
+
+echo "Build finished"
+
+if [ "$FOLDER" == "qemu" ]; then
+    echo "Running OS image on QEMU."
+    qemu-system-arm $RUN_FLAGS -kernel bin/os.elf
+fi
