@@ -60,10 +60,10 @@ reset_handler:
     @ 4. Zero the .bss section.
     @    The C standard requires uninitialized globals to be zero. The
     @    bootloader on BeagleBone may not do this, so we do it ourselves.
-    @    __bss_start__ and __bss_end__ are symbols defined in the linker script.
+    @    _bss_start and _bss_end are symbols defined in the linker script.
     @ -----------------------------------------------------------------------
-    ldr r0, =__bss_start__
-    ldr r1, =__bss_end__
+    ldr r0, =_bss_start
+    ldr r1, =_bss_end
     mov r2, #0
 bss_zero_loop:
     cmp  r0, r1
@@ -167,6 +167,10 @@ enable_irq:
 .section .bss
 .align 4
 
+@ Symbols used by reset_handler to zero .bss
+.globl _bss_start
+_bss_start:
+
 @ IRQ mode stack — used exclusively during IRQ exception handling
 _irq_stack_bottom:
     .skip 0x1000                @ 4KB — sufficient for nested C handler calls
@@ -176,3 +180,6 @@ _irq_stack_top:
 _stack_bottom:
     .skip 0x2000                @ 8KB main stack
 _stack_top:
+
+.globl _bss_end
+_bss_end:
