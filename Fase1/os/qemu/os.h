@@ -11,6 +11,6 @@ typedef struct REG_ACCESS
     volatile unsigned int TISR;           // Timer Interrupt Status Register
 } REG_ACCESS;
 
-void os_init_regs(int address);
+void os_init_regs(void);
 
 #endif // OS_H
