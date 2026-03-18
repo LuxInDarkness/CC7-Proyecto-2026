@@ -22,6 +22,6 @@ typedef struct REG_ACCESS {
 } REG_ACCESS;
 
 // Function to initialize the REG_ACCESS structure with the correct addresses
-void os_init_regs(int address);
+void os_init_regs(void);
 
 #endif // OS_H
