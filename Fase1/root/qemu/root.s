@@ -110,6 +110,7 @@ irq_handler:
     @ The C handler (timer_irq_handler) must clear the SP804 timer interrupt
     @ and then write to VIC_VECTADDR to signal end-of-interrupt to the VIC.
     @ -----------------------------------------------------------------------
+    mov   r0, sp                @ pass IRQ stack pointer as argument to C
     bl timer_irq_handler        @ Call C IRQ handler
 
     ldmfd sp!, {r0-r12, lr}     @ Restore context

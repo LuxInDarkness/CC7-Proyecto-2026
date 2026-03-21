@@ -44,6 +44,7 @@ declare -A FILES=(
     ["program/p1/main.c"]="p1"
     ["program/p2/main.c"]="p2"
     ["os/pcb.c"]="pcb"
+    ["os/scheduler.c"]="scheduler"
 )
 
 COMMON_CFLAGS="-g -c -ffreestanding -nostdlib -nostartfiles -Wall -O1 -I os -I libraries"
@@ -77,7 +78,7 @@ for OBJ in "${!OS_TO_LINK[@]}"; do
     echo "Linking: $OBJ for ${OS_TO_LINK[$OBJ]}"
     arm-none-eabi-gcc -nostartfiles -T "${OS_TO_LINK[$OBJ]}" \
         -o "${OBJ%.o}.elf" \
-        bin/root.o bin/io.o bin/time.o bin/uart.o bin/pcb.o $OBJ
+        bin/root.o bin/io.o bin/time.o bin/uart.o bin/pcb.o bin/scheduler.o $OBJ
 done
 
 echo "Converting ELFs to binary..."

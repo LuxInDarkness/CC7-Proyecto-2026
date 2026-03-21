@@ -22,11 +22,16 @@ typedef struct PCB {
     process_entry_t entry; // Kernel-managed process entry point
 } PCB;
 
+typedef struct IRQFrame {
+    int r[13];    // r0-r12
+    int lr;       // adjusted return address
+} IRQFrame;
+
 void initialize_pcb(PCB *pcb, int pid);
 void configure_process(PCB *pcb, const char *name, process_entry_t entry);
 void setup_initial_process_stack(PCB *pcb, unsigned int stack_top);
-void save_process_state(PCB *pcb, int sp, int pc, int lr, int spsr, int *registers);
-void restore_process_state(PCB *pcb, int *sp, int *pc, int *lr, int *spsr, int *registers);
+void save_process_state(PCB *pcb, IRQFrame *frame);
+void restore_process_state(PCB *pcb, IRQFrame *frame);
 void set_process_state(PCB *pcb, int state);
 
 #endif // PCB_H

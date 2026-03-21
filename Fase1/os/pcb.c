@@ -2,6 +2,32 @@
 
 #define INITIAL_CONTEXT_WORDS 14u
 
+static int read_svc_sp(void) {
+    int sp;
+    __asm__ volatile (
+        "mrs r1, cpsr\n"
+        "bic r2, r1, #0x1F\n"
+        "orr r2, r2, #0x13\n"   // switch to SVC mode
+        "msr cpsr_c, r2\n"
+        "mov %0, sp\n"           // read SP_svc
+        "msr cpsr_c, r1\n"       // switch back to IRQ mode
+        : "=r"(sp) : : "r1", "r2"
+    );
+    return sp;
+}
+
+static void write_svc_sp(int sp) {
+    __asm__ volatile (
+        "mrs r1, cpsr\n"
+        "bic r2, r1, #0x1F\n"
+        "orr r2, r2, #0x13\n"   // switch to SVC mode
+        "msr cpsr_c, r2\n"
+        "mov sp, %0\n"           // write SP_svc
+        "msr cpsr_c, r1\n"       // switch back to IRQ mode
+        : : "r"(sp) : "r1", "r2"
+    );
+}
+
 void initialize_pcb(PCB *pcb, int pid) {
     pcb->pid = pid;
     pcb->sp = 0; // Initialize stack pointer (to be set when process is created)
@@ -37,24 +63,21 @@ void setup_initial_process_stack(PCB *pcb, unsigned int stack_top) {
     pcb->spsr = 0;
 }
 
-void save_process_state(PCB *pcb, int sp, int pc, int lr, int spsr, int *registers) {
-    pcb->sp = sp;
-    pcb->pc = pc;
-    pcb->lr = lr;
-    pcb->spsr = spsr;
-    for (int i = 0; i < 13; i++) {
-        pcb->registers[i] = registers[i]; // Save general-purpose registers
-    }
+// Save from IRQ frame into PCB
+void save_process_state(PCB *pcb, IRQFrame *frame) {
+    for (int i = 0; i < 13; i++)
+        pcb->registers[i] = frame->r[i];
+    pcb->pc = frame->lr;
+    pcb->lr = frame->lr;
+    pcb->sp = read_svc_sp();
 }
 
-void restore_process_state(PCB *pcb, int *sp, int *pc, int *lr, int *spsr, int *registers) {
-    *sp = pcb->sp;
-    *pc = pcb->pc;
-    *lr = pcb->lr;
-    *spsr = pcb->spsr;
-    for (int i = 0; i < 13; i++) {
-        registers[i] = pcb->registers[i]; // Restore general-purpose registers
-    }
+// Restore from PCB into IRQ frame so ldmfd picks it up
+void restore_process_state(PCB *pcb, IRQFrame *frame) {
+    for (int i = 0; i < 13; i++)
+        frame->r[i] = pcb->registers[i];
+    frame->lr = pcb->pc;   // subs pc, lr, #0 will jump here on return
+    write_svc_sp(pcb->sp);
 }
 
 void set_process_state(PCB *pcb, int state) {
