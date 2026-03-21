@@ -1,5 +1,5 @@
-#ifndef OS_H
-#define OS_H
+#ifndef TIMER_H
+#define TIMER_H
 
 #include "../pcb.h"
 
@@ -23,9 +23,12 @@ typedef struct REG_ACCESS {
     volatile unsigned int CM_PER_TIMER2_CLKCTRL; // Timer2 Clock Control (offset 0x80)
 } REG_ACCESS;
 
+extern void context_switch(IRQFrame * frame);
+void timer_init(unsigned int load_value);
 // Function to initialize the REG_ACCESS structure with the correct addresses
 void os_init_regs(void);
-static void create_process(PCB *pcb, int pid, const char *name, process_entry_t entry, unsigned int stack_top);
+// Low-level memory access functions (implemented in root.s)
+void PUT32(unsigned int addr, unsigned int value);
+unsigned int GET32(unsigned int addr);
 
-
-#endif // OS_H
+#endif //TIMER_H

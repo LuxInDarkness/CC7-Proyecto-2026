@@ -1,9 +1,7 @@
-#ifndef OS_H
-#define OS_H
+#ifndef TIMER_H
+#define TIMER_H
 
 #include "../pcb.h"
-#include "../scheduler.h"
-#include "../../libraries/time.h"
 
 typedef struct REG_ACCESS
 {
@@ -41,8 +39,8 @@ typedef struct REG_ACCESS
 /* Timer 0 is on VIC channel 4 (pic[4] in versatilepb.c) */
 #define VIC_TIMER0_BIT      (1 << 4)
 
-void enable_irq(void);
+extern void context_switch(IRQFrame * frame);
 void timer_init(unsigned int load_value);
 void os_init_regs(void);
 
-#endif // OS_H
+#endif // TIMER_H

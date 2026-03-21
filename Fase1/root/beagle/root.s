@@ -118,6 +118,7 @@ irq_handler:
     sub   lr, lr, #4            @ Correct LR: undo the +4 offset added by hardware
     stmfd sp!, {r0-r12, lr}     @ Save full context (r0-r12 + corrected LR) onto IRQ stack
 
+    mov   r0, sp                @ pass IRQ stack pointer as argument to C
     bl timer_irq_handler        @ Call C handler — must clear the timer interrupt flag
                                 @ and acknowledge the interrupt at the INTCPS controller
 

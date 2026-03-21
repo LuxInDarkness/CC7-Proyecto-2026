@@ -3,7 +3,7 @@ STACK_SIZE = 8K;
 
 MEMORY
 {
-    ram (rwx) : ORIGIN = 0x00200000, LENGTH = 64K
+    ram (rwx) : ORIGIN = 0x00300000, LENGTH = 64K
 }
 
 SECTIONS
@@ -35,5 +35,5 @@ SECTIONS
     _stack_top = ORIGIN(ram) + LENGTH(ram);
     _stack_bottom = _stack_top - STACK_SIZE;
 
-    ASSERT(__bss_end__ <= _stack_bottom, "P2 image overlaps reserved stack region")
+    ASSERT(__bss_end__ <= _stack_bottom, "P3 image overlaps reserved stack region")
 }

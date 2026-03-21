@@ -1,0 +1,23 @@
+#include "svc.h"
+
+// Safer version for ARMv7-A
+int read_svc_sp(void) {
+    int sp;
+    __asm__ volatile (
+        "dsb\n"             // Data Syncronization Barrier to avoid cache
+        "cps #0x13\n"       // switch to SVC mode (0x13)
+        "mov %0, sp\n"      // read SP_svc
+        "cps #0x12\n"       // switch back to IRQ mode (0x12)
+        : "=r"(sp) : : "memory"
+    );
+    return sp;
+}
+
+void write_svc_sp(int sp) {
+    __asm__ volatile (
+        "cps #0x13\n"       // switch to SVC mode
+        "mov sp, %0\n"      // write SP_svc
+        "cps #0x12\n"       // switch back to IRQ mode
+        : : "r"(sp) : "memory"
+    );
+}

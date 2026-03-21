@@ -2,32 +2,6 @@
 
 #define INITIAL_CONTEXT_WORDS 14u
 
-static int read_svc_sp(void) {
-    int sp;
-    __asm__ volatile (
-        "mrs r1, cpsr\n"
-        "bic r2, r1, #0x1F\n"
-        "orr r2, r2, #0x13\n"   // switch to SVC mode
-        "msr cpsr_c, r2\n"
-        "mov %0, sp\n"           // read SP_svc
-        "msr cpsr_c, r1\n"       // switch back to IRQ mode
-        : "=r"(sp) : : "r1", "r2"
-    );
-    return sp;
-}
-
-static void write_svc_sp(int sp) {
-    __asm__ volatile (
-        "mrs r1, cpsr\n"
-        "bic r2, r1, #0x1F\n"
-        "orr r2, r2, #0x13\n"   // switch to SVC mode
-        "msr cpsr_c, r2\n"
-        "mov sp, %0\n"           // write SP_svc
-        "msr cpsr_c, r1\n"       // switch back to IRQ mode
-        : : "r"(sp) : "r1", "r2"
-    );
-}
-
 void initialize_pcb(PCB *pcb, int pid) {
     pcb->pid = pid;
     pcb->sp = 0; // Initialize stack pointer (to be set when process is created)

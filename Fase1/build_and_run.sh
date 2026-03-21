@@ -15,15 +15,18 @@ if [ "$#" -ne "0" ]; then
         echo "Using Qemu platform..."
         FOLDER="qemu"
         RUN_FLAGS="-M versatilepb -nographic -gdb tcp::5000"
+        PLATFORM_FLAG="-DPLATFORM_QEMU -mcpu=arm926ej-s"
     else
         echo "Using BeagleBone Black platform..."
         FOLDER="beagle"
         RUN_FLAGS="-M beagle -nographic"
+        PLATFORM_FLAG="-DPLATFORM_BEAGLE -mcpu=cortex-a8"
     fi
 else
     echo "No platform specified, defaulting to BeagleBone Black..."
     FOLDER="beagle"
     RUN_FLAGS="-M beagle -nographic"
+    PLATFORM_FLAG="-DPLATFORM_BEAGLE -mcpu=cortex-a8"
 fi
 
 # Remove previous compiled objects and binaries
@@ -37,17 +40,20 @@ arm-none-eabi-as -o bin/start.o program/program_start.s
 
 echo "Compiling all relevant C files..."
 declare -A FILES=(
-    ["os/$FOLDER/os.c"]="os"
+    ["os/os.c"]="os"
     ["os/$FOLDER/uart.c"]="uart"
+    ["os/$FOLDER/timer.c"]="timer"
+    ["os/$FOLDER/svc.c"]="svc"
     ["libraries/io.c"]="io"
     ["libraries/time.c"]="time"
     ["program/p1/main.c"]="p1"
     ["program/p2/main.c"]="p2"
+    ["program/p3/main.c"]="p3"
     ["os/pcb.c"]="pcb"
     ["os/scheduler.c"]="scheduler"
 )
 
-COMMON_CFLAGS="-g -c -ffreestanding -nostdlib -nostartfiles -Wall -O1 -I os -I libraries"
+COMMON_CFLAGS="-g -c -ffreestanding -nostdlib -nostartfiles -Wall -O1 -I os -I libraries $PLATFORM_FLAG"
 
 for FILE in "${!FILES[@]}"; do
     OUT="${FILES[$FILE]}"
@@ -59,9 +65,10 @@ done
 declare -A P_TO_LINK=(
     ["bin/p1.o"]="program/$FOLDER/linker_p1.ld"
     ["bin/p2.o"]="program/$FOLDER/linker_p2.ld"
-    )
+    ["bin/p3.o"]="program/$FOLDER/linker_p3.ld"
+)
 
-echo "Linking all relevant object files for P1 and P2..."
+echo "Linking all relevant object files for P1, P2 and P3..."
 for OBJ in "${!P_TO_LINK[@]}"; do
     echo "Linking: $OBJ for ${P_TO_LINK[$OBJ]}"
     arm-none-eabi-gcc -nostartfiles -T "${P_TO_LINK[$OBJ]}" \
@@ -78,7 +85,7 @@ for OBJ in "${!OS_TO_LINK[@]}"; do
     echo "Linking: $OBJ for ${OS_TO_LINK[$OBJ]}"
     arm-none-eabi-gcc -nostartfiles -T "${OS_TO_LINK[$OBJ]}" \
         -o "${OBJ%.o}.elf" \
-        bin/root.o bin/io.o bin/time.o bin/uart.o bin/pcb.o bin/scheduler.o $OBJ
+        bin/root.o bin/io.o bin/time.o bin/uart.o bin/pcb.o bin/scheduler.o bin/timer.o bin/svc.o $OBJ
 done
 
 echo "Converting ELFs to binary..."
@@ -90,5 +97,5 @@ echo "Build finished"
 
 if [ "$FOLDER" == "qemu" ]; then
     echo "Running OS image on QEMU."
-    qemu-system-arm $RUN_FLAGS -kernel bin/os.elf -device driver=loader,file=bin/p1.elf -device driver=loader,file=bin/p2.elf
+    qemu-system-arm $RUN_FLAGS -kernel bin/os.elf -device driver=loader,file=bin/p1.elf -device driver=loader,file=bin/p2.elf -device driver=loader,file=bin/p3.elf
 fi

@@ -20,7 +20,8 @@ void enqueue_process(ProcessQueue * queue, PCB * process) {
     } else if (process->state == TERMINATED) {
         add_to_queue(queue->terminated_pool, &queue->terminated_index, process);
     } else {
-        print("Al agregar, estado de proceso invalido: %d\n", process->state);
+        // Solo activar de ser necesario
+        // print("Al agregar, estado de proceso invalido: %d\n", process->state);
     }
 }
 
@@ -35,7 +36,8 @@ PCB remove_process(ProcessQueue * queue, PCB * process) {
     } else if (process->state == TERMINATED) {
         return remove_from_queue(queue->terminated_pool, &queue->terminated_index, process);
     } else {
-        print("Al remover, estado de proceso invalido: %d\n", process->state);
+        // Solo activar de ser necesario
+        // print("Al remover, estado de proceso invalido: %d\n", process->state);
         PCB empty;
         empty.pid = -1;
         return empty;
@@ -45,7 +47,8 @@ PCB remove_process(ProcessQueue * queue, PCB * process) {
 // Adds the new process to the given queue
 void add_to_queue(PCB * pool, int * index, PCB * process) {
     if (*index >= MAX_PROCESSES) {
-        print("Error: pool lleno, no se puede agregar proceso %d\n", process->pid);
+        // Solo activar de ser necesario
+        // print("Error: pool lleno, no se puede agregar proceso %d\n", process->pid);
         return;
     }
 
@@ -69,7 +72,8 @@ PCB remove_from_queue(PCB * pool, int * index, PCB * process) {
     }
 
     if (found == -1) {
-        print("Error: proceso %d con estado %d no encontrado en la cola\n", process->pid, process->state);
+        // Solo activar si debuggear es necesario
+        // print("Error: proceso %d con estado %d no encontrado en la cola\n", process->pid, process->state);
         return removed;
     }
 
@@ -87,7 +91,8 @@ PCB remove_from_queue(PCB * pool, int * index, PCB * process) {
 // Returns the next process in the pool and removes it from the pool, returns pid -1 if pool is empty
 PCB get_next_process(PCB * pool, int * index) {
     if (*index == 0) {
-        print("Error: pool vacio\n");
+        // Solo activar de ser necesario
+        // print("Error: pool vacio\n");
         PCB empty;
         empty.pid = -1;
         return empty;

@@ -150,7 +150,7 @@ _bss_start:
 @ IRQ mode stack — separate stack required since IRQ uses banked SP_irq
 .align 4
 _irq_stack_bottom:
-    .skip 0x1000                @ 4KB IRQ stack
+    .skip 0x4000                @ 16KB IRQ stack
 _irq_stack_top:
 
 @ Main SVC stack

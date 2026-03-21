@@ -1,9 +1,10 @@
 ENTRY(_start)
+
 STACK_SIZE = 8K;
 
 MEMORY
 {
-    ram (rwx) : ORIGIN = 0x00200000, LENGTH = 64K
+    ram : ORIGIN = 0x82300000, LENGTH = 64K
 }
 
 SECTIONS
@@ -12,12 +13,11 @@ SECTIONS
 
     .text :
     {
-        KEEP(*(.vectors))
         *(.text*)
         *(.rodata*)
     } > ram
 
-    .data :
+    .data : AT(ADDR(.text) + SIZEOF(.text))
     {
         __data_start__ = .;
         *(.data*)
@@ -35,5 +35,5 @@ SECTIONS
     _stack_top = ORIGIN(ram) + LENGTH(ram);
     _stack_bottom = _stack_top - STACK_SIZE;
 
-    ASSERT(__bss_end__ <= _stack_bottom, "P2 image overlaps reserved stack region")
+    ASSERT(__bss_end__ <= _stack_bottom, "P3 image overlaps reserved stack region")
 }

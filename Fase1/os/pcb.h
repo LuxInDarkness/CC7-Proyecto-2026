@@ -27,6 +27,8 @@ typedef struct IRQFrame {
     int lr;       // adjusted return address
 } IRQFrame;
 
+extern int read_svc_sp(void);
+extern void write_svc_sp(int sp);
 void initialize_pcb(PCB *pcb, int pid);
 void configure_process(PCB *pcb, const char *name, process_entry_t entry);
 void setup_initial_process_stack(PCB *pcb, unsigned int stack_top);
