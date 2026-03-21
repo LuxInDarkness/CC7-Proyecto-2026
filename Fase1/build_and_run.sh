@@ -33,6 +33,7 @@ mkdir -p bin
 
 echo "Assembling os/root.s..."
 arm-none-eabi-as -o bin/root.o root/$FOLDER/root.s
+arm-none-eabi-as -o bin/start.o program/program_start.s
 
 echo "Compiling all relevant C files..."
 declare -A FILES=(
@@ -42,31 +43,41 @@ declare -A FILES=(
     ["libraries/time.c"]="time"
     ["program/p1/main.c"]="p1"
     ["program/p2/main.c"]="p2"
+    ["os/pcb.c"]="pcb"
 )
+
+COMMON_CFLAGS="-g -c -ffreestanding -nostdlib -nostartfiles -Wall -O1 -I os -I libraries"
 
 for FILE in "${!FILES[@]}"; do
     OUT="${FILES[$FILE]}"
     echo "Compiling $FILE -> bin/$OUT.o..."
-    arm-none-eabi-gcc -g -c \
-        -ffreestanding -nostdlib -nostartfiles \
-        -Wall -O1 \
-        -I os \
-        -I libraries \
+    arm-none-eabi-gcc $COMMON_CFLAGS \
         -o bin/$OUT.o $FILE
 done
 
-declare -A TO_LINK=(
+declare -A P_TO_LINK=(
     ["bin/p1.o"]="program/$FOLDER/linker_p1.ld"
     ["bin/p2.o"]="program/$FOLDER/linker_p2.ld"
+    )
+
+echo "Linking all relevant object files for P1 and P2..."
+for OBJ in "${!P_TO_LINK[@]}"; do
+    echo "Linking: $OBJ for ${P_TO_LINK[$OBJ]}"
+    arm-none-eabi-gcc -nostartfiles -T "${P_TO_LINK[$OBJ]}" \
+        -o "${OBJ%.o}.elf" \
+        bin/start.o bin/io.o bin/time.o bin/uart.o $OBJ
+done
+
+declare -A OS_TO_LINK=(
     ["bin/os.o"]="os/$FOLDER/linker.ld"
 )
 
-echo "Linking all relevant object files..."
-for OBJ in "${!TO_LINK[@]}"; do
-    echo "Linking: $OBJ for ${TO_LINK[$OBJ]}"
-    arm-none-eabi-gcc -nostartfiles -T "${TO_LINK[$OBJ]}" \
+echo "Linking all relevant object files for OS..."
+for OBJ in "${!OS_TO_LINK[@]}"; do
+    echo "Linking: $OBJ for ${OS_TO_LINK[$OBJ]}"
+    arm-none-eabi-gcc -nostartfiles -T "${OS_TO_LINK[$OBJ]}" \
         -o "${OBJ%.o}.elf" \
-        bin/root.o bin/io.o bin/time.o bin/uart.o $OBJ
+        bin/root.o bin/io.o bin/time.o bin/uart.o bin/pcb.o $OBJ
 done
 
 echo "Converting ELFs to binary..."
@@ -74,5 +85,9 @@ for ELF in bin/*.elf; do
     arm-none-eabi-objcopy -O binary "$ELF" "${ELF%.elf}.bin"
 done
 
-echo "Running Program..."
-qemu-system-arm $RUN_FLAGS -kernel bin/p2.elf
+echo "Build finished"
+
+if [ "$FOLDER" == "qemu" ]; then
+    echo "Running OS image on QEMU."
+    qemu-system-arm $RUN_FLAGS -kernel bin/os.elf -device driver=loader,file=bin/p1.elf -device driver=loader,file=bin/p2.elf
+fi
