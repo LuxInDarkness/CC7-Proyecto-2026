@@ -3,6 +3,7 @@
 *.bin
 *.o
 *.elf
+.vscode
 
 #dont ignore these files and directories
 !Fase1/bin/p2.elf

@@ -1,6 +1,8 @@
 #ifndef OS_H
 #define OS_H
 
+#include "../pcb.h"
+
 typedef struct REG_ACCESS {
     volatile unsigned int UART0_BASE; // Base address for UART0
     volatile unsigned int UART_THR; // Transmit Holding Register (offset 0x00), equivalent to UART_DR for VersatilePB
@@ -23,5 +25,7 @@ typedef struct REG_ACCESS {
 
 // Function to initialize the REG_ACCESS structure with the correct addresses
 void os_init_regs(void);
+static void create_process(PCB *pcb, int pid, const char *name, process_entry_t entry, unsigned int stack_top);
+
 
 #endif // OS_H
