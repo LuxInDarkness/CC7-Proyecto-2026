@@ -31,7 +31,7 @@ fi
 
 # Remove previous compiled objects and binaries
 echo "Cleaning up previous build files..."
-rm -f bin/*.o bin/program.elf bin/program.bin
+rm -f bin/*.o bin/*.elf bin/*.bin
 mkdir -p bin
 
 echo "Assembling os/root.s..."
