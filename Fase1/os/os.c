@@ -32,7 +32,9 @@ static void initialize_processes(void) {
 }
 
 int main() {
+    watchdog_disable();
     os_init_regs();
+    intc_init();
 
     init_queue(&process_queue);
     print("Inicializada cola de procesos\n");
@@ -40,7 +42,7 @@ int main() {
     initialize_processes();
     print("Procesos creados: P1, P2 y P3\n");
 
-    unsigned int cd_value = 100000;
+    unsigned int cd_value = TIMER_CD_VALUE;
     timer_init(cd_value);
 
     enable_irq();
