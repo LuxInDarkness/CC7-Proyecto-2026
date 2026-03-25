@@ -44,6 +44,7 @@ declare -A FILES=(
     ["os/$FOLDER/uart.c"]="uart"
     ["os/$FOLDER/timer.c"]="timer"
     ["os/$FOLDER/svc.c"]="svc"
+    ["os/$FOLDER/watchdog.c"]="watchdog"
     ["libraries/io.c"]="io"
     ["libraries/time.c"]="time"
     ["program/p1/main.c"]="p1"
@@ -85,7 +86,7 @@ for OBJ in "${!OS_TO_LINK[@]}"; do
     echo "Linking: $OBJ for ${OS_TO_LINK[$OBJ]}"
     arm-none-eabi-gcc -nostartfiles -T "${OS_TO_LINK[$OBJ]}" \
         -o "${OBJ%.o}.elf" \
-        bin/root.o bin/io.o bin/time.o bin/uart.o bin/pcb.o bin/scheduler.o bin/timer.o bin/svc.o $OBJ
+        bin/root.o bin/io.o bin/time.o bin/uart.o bin/pcb.o bin/scheduler.o bin/timer.o bin/svc.o bin/watchdog.o $OBJ
 done
 
 echo "Converting ELFs to binary..."
