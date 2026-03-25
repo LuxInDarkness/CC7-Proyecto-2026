@@ -40,6 +40,7 @@ typedef struct REG_ACCESS
 #define VIC_TIMER0_BIT      (1 << 4)
 
 extern void context_switch(IRQFrame * frame);
+void intc_init(void);
 void timer_init(unsigned int load_value);
 void os_init_regs(void);
 
