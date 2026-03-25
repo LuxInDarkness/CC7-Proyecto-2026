@@ -3,6 +3,10 @@
 static REG_ACCESS access_block;
 static REG_ACCESS *ACCESS = &access_block;
 
+void intc_init(void) {
+    // No initialization needed in QEMU
+}
+
 void timer_init(unsigned int load_value) {
     /* --- SP804 Timer 0 setup -------------------------------------------- */
     // Disable timer
