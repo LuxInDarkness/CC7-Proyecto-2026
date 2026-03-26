@@ -2,7 +2,7 @@
 
 #define INITIAL_CONTEXT_WORDS 14u
 
-void initialize_pcb(PCB *pcb, int pid) {
+void initialize_pcb(PCB *pcb, int pid, int quantums) {
     pcb->pid = pid;
     pcb->sp = 0; // Initialize stack pointer (to be set when process is created)
     pcb->pc = 0; // Initialize program counter (to be set when process is created)
@@ -14,6 +14,8 @@ void initialize_pcb(PCB *pcb, int pid) {
     pcb->name = 0;
     pcb->entry = 0;
     pcb->state = READY; // Initialize process state (READY)
+    pcb->max_quantums = quantums;
+    pcb->curr_quantums = 0;
 }
 
 void configure_process(PCB *pcb, const char *name, process_entry_t entry) {

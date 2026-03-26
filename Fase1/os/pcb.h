@@ -19,6 +19,8 @@ typedef struct PCB {
     int registers[13]; // General-purpose registers (r0-r12)
     int state; // Process state (e.g., READY, RUNNING, BLOCKED)
     const char *name; // Human-readable process name
+    int max_quantums; // Number of timer operations that the process will be allowed to run
+    int curr_quantums;
     process_entry_t entry; // Kernel-managed process entry point
 } PCB;
 
@@ -29,7 +31,7 @@ typedef struct IRQFrame {
 
 extern int read_svc_sp(void);
 extern void write_svc_sp(int sp);
-void initialize_pcb(PCB *pcb, int pid);
+void initialize_pcb(PCB *pcb, int pid, int quantums);
 void configure_process(PCB *pcb, const char *name, process_entry_t entry);
 void setup_initial_process_stack(PCB *pcb, unsigned int stack_top);
 void save_process_state(PCB *pcb, IRQFrame *frame);
