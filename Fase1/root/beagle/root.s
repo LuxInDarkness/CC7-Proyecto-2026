@@ -90,8 +90,25 @@ hang:
 undefined_handler:
     b hang
 
+@ ===========================================================================
+@ SWI Handler
+@
+@ ARM SWI entry conditions (ARMv7-A):
+@ LR_svc = address of instruction after the SWI (correct return address)
+@ No -4 adjustment needed unlike IRQ
+@ ===========================================================================
 swi_handler:
-    b hang
+    stmfd sp!, {r0-r12, lr}    @ save context onto SVC stack
+
+    mov   r0, sp               @ r0 = frame pointer
+    add   r1, sp, #56          @ r1 = original sp = frame pointer + 56
+    bl    swi_c_handler        @ same logic as timer context_switch
+
+    str   r0, [sp, #-4]!       @ push next-SP just below frame
+    ldmfd sp!, {r1}            @ pop it into r1
+    ldmfd sp!, {r0-r12, lr}    @ restore frame — lr = next PC
+    mov   sp, r1               @ NOW safe: frame already consumed
+    movs  pc, lr               @ jump to next process
 
 prefetch_handler:
     b hang

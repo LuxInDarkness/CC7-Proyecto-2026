@@ -40,16 +40,16 @@ void setup_initial_process_stack(PCB *pcb, unsigned int stack_top) {
 }
 
 // Save from IRQ frame into PCB
-void save_process_state(PCB *pcb, IRQFrame *frame) {
+void save_process_state(PCB *pcb, StackFrame *frame, int is_irq, int original_sp) {
     for (int i = 0; i < 13; i++)
         pcb->registers[i] = frame->r[i];
     pcb->pc = frame->lr;
     pcb->lr = frame->lr;
-    pcb->sp = read_svc_sp();
+    pcb->sp = is_irq? read_svc_sp() : original_sp;
 }
 
 // Restore from PCB into IRQ frame so ldmfd picks it up
-void restore_process_state(PCB *pcb, IRQFrame *frame) {
+void restore_process_state(PCB *pcb, StackFrame *frame) {
     for (int i = 0; i < 13; i++)
         frame->r[i] = pcb->registers[i];
     frame->lr = pcb->pc;   // subs pc, lr, #0 will jump here on return

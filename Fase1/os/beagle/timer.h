@@ -26,7 +26,7 @@ typedef struct REG_ACCESS {
     volatile unsigned int CLKSEL_TIMER2_CLK; // Timer2 Clock Selection (offset 0xD8)
 } REG_ACCESS;
 
-extern void context_switch(IRQFrame * frame);
+extern void context_switch(StackFrame * frame, int quantums, int is_irq, int original_sp);
 void intc_init(void);
 void timer_init(unsigned int load_value);
 int calculate_timer_cd(int milliseconds);

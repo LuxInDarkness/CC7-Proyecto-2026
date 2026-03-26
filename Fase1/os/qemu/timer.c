@@ -31,11 +31,11 @@ void timer_init(unsigned int load_value) {
     *(ACCESS->VIC_INTENABLE) = VIC_TIMER0_BIT;
 }
 
-void timer_irq_handler(IRQFrame * frame) {
+void timer_irq_handler(StackFrame * frame) {
     // Clear the timer interrupt
     *(ACCESS->TIMER0_INTCLR) = 1;
 
-    context_switch(frame);
+    context_switch(frame, 1, 1, 0);
 
     // Signal end of interrupt
     *(ACCESS->VIC_VECTADDR) = 0;

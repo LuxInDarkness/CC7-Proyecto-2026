@@ -41,7 +41,7 @@ typedef struct REG_ACCESS
 /* Timer 0 is on VIC channel 4 (pic[4] in versatilepb.c) */
 #define VIC_TIMER0_BIT      (1 << 4)
 
-extern void context_switch(IRQFrame * frame);
+extern void context_switch(StackFrame * frame, int quantums, int is_irq, int original_sp);
 void intc_init(void);
 void timer_init(unsigned int load_value);
 int calculate_timer_cd(int milliseconds);

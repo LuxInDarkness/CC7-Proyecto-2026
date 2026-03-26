@@ -21,3 +21,10 @@ void write_svc_sp(int sp) {
         : : "r"(sp) : "memory"
     );
 }
+
+void write_svc_sp_from_svc(int sp) {
+    __asm__ volatile (
+        "mov sp, %0\n"
+        : : "r"(sp) : "memory"
+    );
+}

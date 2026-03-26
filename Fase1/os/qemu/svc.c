@@ -27,3 +27,10 @@ int read_svc_sp(void) {
     );
     return sp;
 }
+
+void write_svc_sp_from_svc(int sp) {
+    __asm__ volatile (
+        "mov sp, %0\n"
+        : : "r"(sp) : "memory"
+    );
+}
