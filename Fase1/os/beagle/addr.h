@@ -9,7 +9,4 @@
 #define P2_STACK_TOP_ADDR 0x82210000u
 #define P3_STACK_TOP_ADDR 0x82310000u
 
-// 24MHz, 3 seg
-#define TIMER_CD_VALUE (0xFFFFFFFFu - (3u * 24000000u) + 1u)
-
 #endif // ADDR_H

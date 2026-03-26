@@ -41,6 +41,10 @@ void timer_irq_handler(IRQFrame * frame) {
     *(ACCESS->VIC_VECTADDR) = 0;
 }
 
+int calculate_timer_cd(int milliseconds) {
+    return CLOCK_FREQ / 1000 * milliseconds;
+}
+
 void os_init_regs(void) {
     
     ACCESS->UART0_BASE = 0x101F1000;

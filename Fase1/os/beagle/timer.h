@@ -3,6 +3,8 @@
 
 #include "../pcb.h"
 
+#define CLOCK_FREQ 24000000
+
 typedef struct REG_ACCESS {
     volatile unsigned int UART0_BASE; // Base address for UART0
     volatile unsigned int UART_THR; // Transmit Holding Register (offset 0x00), equivalent to UART_DR for VersatilePB
@@ -27,12 +29,8 @@ typedef struct REG_ACCESS {
 extern void context_switch(IRQFrame * frame);
 void intc_init(void);
 void timer_init(unsigned int load_value);
+int calculate_timer_cd(int milliseconds);
 // Function to initialize the REG_ACCESS structure with the correct addresses
 void os_init_regs(void);
-// Low-level memory access functions (implemented in root.s)
-void PUT32(unsigned int addr, unsigned int value);
-unsigned int GET32(unsigned int addr);
-
-extern void print(const char *s, ...);
 
 #endif //TIMER_H

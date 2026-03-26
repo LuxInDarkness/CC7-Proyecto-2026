@@ -41,6 +41,10 @@ void timer_irq_handler(IRQFrame * frame) {
     PUT32(ACCESS->INTC_CONTROL, 0x1);
 }
 
+int calculate_timer_cd(int milliseconds) {
+    return 0xFFFFFFFFu - ((CLOCK_FREQ / 1000) * milliseconds) + 1;
+}
+
 void os_init_regs(void) {
     ACCESS->UART0_BASE = 0x44E09000;
     ACCESS->UART_THR = ACCESS->UART0_BASE + 0x00;

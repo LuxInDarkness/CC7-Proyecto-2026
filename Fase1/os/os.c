@@ -42,8 +42,7 @@ int main() {
     initialize_processes();
     print("Procesos creados: P1, P2 y P3\n");
 
-    unsigned int cd_value = TIMER_CD_VALUE;
-    timer_init(cd_value);
+    timer_init(calculate_timer_cd(3000));
 
     enable_irq();
     print("\n -- SO iniciado -- \n");

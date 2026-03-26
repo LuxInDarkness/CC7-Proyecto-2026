@@ -3,6 +3,8 @@
 
 #include "../pcb.h"
 
+#define CLOCK_FREQ 1000000
+
 typedef struct REG_ACCESS
 {
     volatile unsigned int UART0_BASE; // Base address for UART0
@@ -42,6 +44,7 @@ typedef struct REG_ACCESS
 extern void context_switch(IRQFrame * frame);
 void intc_init(void);
 void timer_init(unsigned int load_value);
+int calculate_timer_cd(int milliseconds);
 void os_init_regs(void);
 
 #endif // TIMER_H
