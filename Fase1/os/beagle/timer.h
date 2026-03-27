@@ -1,7 +1,9 @@
-#ifndef OS_H
-#define OS_H
+#ifndef TIMER_H
+#define TIMER_H
 
 #include "../pcb.h"
+
+#define CLOCK_FREQ 24000000
 
 typedef struct REG_ACCESS {
     volatile unsigned int UART0_BASE; // Base address for UART0
@@ -21,11 +23,14 @@ typedef struct REG_ACCESS {
     volatile unsigned int INTC_ILR68; // Interrupt Line Register 68 (offset 0x110)
     volatile unsigned int CM_PER_BASE; // Base address for Clock Manager
     volatile unsigned int CM_PER_TIMER2_CLKCTRL; // Timer2 Clock Control (offset 0x80)
+    volatile unsigned int CLKSEL_TIMER2_CLK; // Timer2 Clock Selection (offset 0xD8)
 } REG_ACCESS;
 
+extern void context_switch(StackFrame * frame, int quantums, int is_irq, int original_sp);
+void intc_init(void);
+void timer_init(unsigned int load_value);
+int calculate_timer_cd(int milliseconds);
 // Function to initialize the REG_ACCESS structure with the correct addresses
 void os_init_regs(void);
-static void create_process(PCB *pcb, int pid, const char *name, process_entry_t entry, unsigned int stack_top);
 
-
-#endif // OS_H
+#endif //TIMER_H

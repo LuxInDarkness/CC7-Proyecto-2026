@@ -2,7 +2,7 @@
 
 #define INITIAL_CONTEXT_WORDS 14u
 
-void initialize_pcb(PCB *pcb, int pid) {
+void initialize_pcb(PCB *pcb, int pid, int quantums) {
     pcb->pid = pid;
     pcb->sp = 0; // Initialize stack pointer (to be set when process is created)
     pcb->pc = 0; // Initialize program counter (to be set when process is created)
@@ -14,6 +14,8 @@ void initialize_pcb(PCB *pcb, int pid) {
     pcb->name = 0;
     pcb->entry = 0;
     pcb->state = READY; // Initialize process state (READY)
+    pcb->max_quantums = quantums;
+    pcb->curr_quantums = 0;
 }
 
 void configure_process(PCB *pcb, const char *name, process_entry_t entry) {
@@ -37,24 +39,21 @@ void setup_initial_process_stack(PCB *pcb, unsigned int stack_top) {
     pcb->spsr = 0;
 }
 
-void save_process_state(PCB *pcb, int sp, int pc, int lr, int spsr, int *registers) {
-    pcb->sp = sp;
-    pcb->pc = pc;
-    pcb->lr = lr;
-    pcb->spsr = spsr;
-    for (int i = 0; i < 13; i++) {
-        pcb->registers[i] = registers[i]; // Save general-purpose registers
-    }
+// Save from IRQ frame into PCB
+void save_process_state(PCB *pcb, StackFrame *frame, int is_irq, int original_sp) {
+    for (int i = 0; i < 13; i++)
+        pcb->registers[i] = frame->r[i];
+    pcb->pc = frame->lr;
+    pcb->lr = frame->lr;
+    pcb->sp = is_irq? read_svc_sp() : original_sp;
 }
 
-void restore_process_state(PCB *pcb, int *sp, int *pc, int *lr, int *spsr, int *registers) {
-    *sp = pcb->sp;
-    *pc = pcb->pc;
-    *lr = pcb->lr;
-    *spsr = pcb->spsr;
-    for (int i = 0; i < 13; i++) {
-        registers[i] = pcb->registers[i]; // Restore general-purpose registers
-    }
+// Restore from PCB into IRQ frame so ldmfd picks it up
+void restore_process_state(PCB *pcb, StackFrame *frame) {
+    for (int i = 0; i < 13; i++)
+        frame->r[i] = pcb->registers[i];
+    frame->lr = pcb->pc;   // subs pc, lr, #0 will jump here on return
+    write_svc_sp(pcb->sp);
 }
 
 void set_process_state(PCB *pcb, int state) {

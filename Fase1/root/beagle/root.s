@@ -90,8 +90,26 @@ hang:
 undefined_handler:
     b hang
 
+@ ===========================================================================
+@ SWI Handler
+@
+@ ARM SWI entry conditions (ARMv7-A):
+@ LR_svc = address of instruction after the SWI (correct return address)
+@ No -4 adjustment needed unlike IRQ
+@ ===========================================================================
 swi_handler:
-    b hang
+    stmfd sp!, {r0-r12, lr}     @ push frame (56 bytes), sp = frame pointer
+    mov   r0, sp                @ arg1: frame*
+    add   r1, sp, #56           @ arg2: original_sp
+    bl    swi_c_handler         @ r0 = next process SP on return
+
+    @ Store next-SP at original_sp (one word above frame top).
+    @ After ldmfd restores sp to original_sp, we load it back.
+    str   r0, [sp, #56]         @ *original_sp = next process SP
+    ldmfd sp!, {r0-r12, lr}     @ restore frame, sp is now original_sp
+                                @ lr = next process PC (written by swi_c_handler)
+    ldr   sp, [sp]              @ sp = *original_sp = next process SP
+    movs  pc, lr                @ exception return, jump to next process
 
 prefetch_handler:
     b hang
@@ -118,6 +136,7 @@ irq_handler:
     sub   lr, lr, #4            @ Correct LR: undo the +4 offset added by hardware
     stmfd sp!, {r0-r12, lr}     @ Save full context (r0-r12 + corrected LR) onto IRQ stack
 
+    mov   r0, sp                @ pass IRQ stack pointer as argument to C
     bl timer_irq_handler        @ Call C handler — must clear the timer interrupt flag
                                 @ and acknowledge the interrupt at the INTCPS controller
 

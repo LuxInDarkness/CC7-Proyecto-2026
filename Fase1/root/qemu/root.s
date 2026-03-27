@@ -83,8 +83,25 @@ hang:
 undefined_handler:
     b hang
 
+@ ===========================================================================
+@ SWI Handler
+@
+@ lr = address of instruction after the SWI (correct return address)
+@ No -4 adjustment needed unlike IRQ
+@ ===========================================================================
 swi_handler:
-    b hang
+    stmfd sp!, {r0-r12, lr}     @ push frame (56 bytes), sp = frame pointer
+    mov   r0, sp                @ arg1: frame*
+    add   r1, sp, #56           @ arg2: original_sp
+    bl    swi_c_handler         @ r0 = next process SP on return
+
+    @ Store next-SP at original_sp (one word above frame top).
+    @ After ldmfd restores sp to original_sp, we load it back.
+    str   r0, [sp, #56]         @ *original_sp = next process SP
+    ldmfd sp!, {r0-r12, lr}     @ restore frame, sp is now original_sp
+                                @ lr = next process PC (written by swi_c_handler)
+    ldr   sp, [sp]              @ sp = *original_sp = next process SP
+    movs  pc, lr                @ exception return, jump to next process
 
 prefetch_handler:
     b hang
@@ -105,11 +122,7 @@ irq_handler:
     sub   lr, lr, #4            @ Adjust return address (IRQ offset correction)
     stmfd sp!, {r0-r12, lr}     @ Save full context onto IRQ stack
 
-    @ -----------------------------------------------------------------------
-    @ On VersatilePB the PL190 VIC does NOT auto-clear the interrupt.
-    @ The C handler (timer_irq_handler) must clear the SP804 timer interrupt
-    @ and then write to VIC_VECTADDR to signal end-of-interrupt to the VIC.
-    @ -----------------------------------------------------------------------
+    mov   r0, sp                @ pass IRQ stack pointer as argument to C
     bl timer_irq_handler        @ Call C IRQ handler
 
     ldmfd sp!, {r0-r12, lr}     @ Restore context
@@ -149,7 +162,7 @@ _bss_start:
 @ IRQ mode stack — separate stack required since IRQ uses banked SP_irq
 .align 4
 _irq_stack_bottom:
-    .skip 0x1000                @ 4KB IRQ stack
+    .skip 0x4000                @ 16KB IRQ stack
 _irq_stack_top:
 
 @ Main SVC stack

@@ -19,14 +19,24 @@ typedef struct PCB {
     int registers[13]; // General-purpose registers (r0-r12)
     int state; // Process state (e.g., READY, RUNNING, BLOCKED)
     const char *name; // Human-readable process name
+    int max_quantums; // Number of timer operations that the process will be allowed to run
+    int curr_quantums;
     process_entry_t entry; // Kernel-managed process entry point
 } PCB;
 
-void initialize_pcb(PCB *pcb, int pid);
+typedef struct StackFrame {
+    int r[13];    // r0-r12
+    int lr;       // adjusted return address
+} StackFrame;
+
+extern int read_svc_sp(void);
+extern void write_svc_sp(int sp);
+extern void write_svc_sp_from_svc(int sp);
+void initialize_pcb(PCB *pcb, int pid, int quantums);
 void configure_process(PCB *pcb, const char *name, process_entry_t entry);
 void setup_initial_process_stack(PCB *pcb, unsigned int stack_top);
-void save_process_state(PCB *pcb, int sp, int pc, int lr, int spsr, int *registers);
-void restore_process_state(PCB *pcb, int *sp, int *pc, int *lr, int *spsr, int *registers);
+void save_process_state(PCB *pcb, StackFrame *frame, int is_irq, int original_sp);
+void restore_process_state(PCB *pcb, StackFrame *frame);
 void set_process_state(PCB *pcb, int state);
 
 #endif // PCB_H

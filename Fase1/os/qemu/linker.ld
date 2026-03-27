@@ -36,5 +36,5 @@ SECTIONS
     _stack_top = ORIGIN(ram) + LENGTH(ram);
     _stack_bottom = _stack_top - STACK_SIZE;
 
-    ASSERT(__bss_end__ <= _stack_bottom, "P1 image overlaps reserved stack region")
+    ASSERT(__bss_end__ <= _stack_bottom, "OS image overlaps reserved stack region")
 }
