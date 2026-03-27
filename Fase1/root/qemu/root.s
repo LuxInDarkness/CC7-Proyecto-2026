@@ -86,21 +86,22 @@ undefined_handler:
 @ ===========================================================================
 @ SWI Handler
 @
-@ LR_svc = address of instruction after the SWI (correct return address)
+@ lr = address of instruction after the SWI (correct return address)
 @ No -4 adjustment needed unlike IRQ
 @ ===========================================================================
 swi_handler:
-    stmfd sp!, {r0-r12, lr}    @ save context onto SVC stack
+    stmfd sp!, {r0-r12, lr}     @ push frame (56 bytes), sp = frame pointer
+    mov   r0, sp                @ arg1: frame*
+    add   r1, sp, #56           @ arg2: original_sp
+    bl    swi_c_handler         @ r0 = next process SP on return
 
-    mov   r0, sp               @ r0 = frame pointer
-    add   r1, sp, #56          @ r1 = original sp = frame pointer + 56
-    bl    swi_c_handler        @ same logic as timer context_switch
-
-    str   r0, [sp, #-4]!       @ push next-SP just below frame
-    ldmfd sp!, {r1}            @ pop it into r1
-    ldmfd sp!, {r0-r12, lr}    @ restore frame — lr = next PC
-    mov   sp, r1               @ NOW safe: frame already consumed
-    movs  pc, lr               @ jump to next process
+    @ Store next-SP at original_sp (one word above frame top).
+    @ After ldmfd restores sp to original_sp, we load it back.
+    str   r0, [sp, #56]         @ *original_sp = next process SP
+    ldmfd sp!, {r0-r12, lr}     @ restore frame, sp is now original_sp
+                                @ lr = next process PC (written by swi_c_handler)
+    ldr   sp, [sp]              @ sp = *original_sp = next process SP
+    movs  pc, lr                @ exception return, jump to next process
 
 prefetch_handler:
     b hang
@@ -121,11 +122,6 @@ irq_handler:
     sub   lr, lr, #4            @ Adjust return address (IRQ offset correction)
     stmfd sp!, {r0-r12, lr}     @ Save full context onto IRQ stack
 
-    @ -----------------------------------------------------------------------
-    @ On VersatilePB the PL190 VIC does NOT auto-clear the interrupt.
-    @ The C handler (timer_irq_handler) must clear the SP804 timer interrupt
-    @ and then write to VIC_VECTADDR to signal end-of-interrupt to the VIC.
-    @ -----------------------------------------------------------------------
     mov   r0, sp                @ pass IRQ stack pointer as argument to C
     bl timer_irq_handler        @ Call C IRQ handler
 
