@@ -4,6 +4,13 @@
 #define FLOAT_TO_STRING_BUFFER_SIZE 32
 #define PRINT_BUFFER_SIZE 256
 
+// Function to send a string via UART
+void os_write(const char *s) {
+    while (*s) {
+        uart_putc(*s++);
+    }
+}
+
 void vprint(const char *s, va_list args) {
     int mod_flag = 0;
     char final[PRINT_BUFFER_SIZE];
@@ -49,9 +56,7 @@ void vprint(const char *s, va_list args) {
     }
 
     *final_ptr = '\0';
-    int len = 0;
-    while (final[len]) len++;
-    write(1, final, len);
+    os_write(final);
 }
 
 void print(const char *s, ...) {

@@ -8,6 +8,7 @@ void initialize_pcb(PCB *pcb, int pid, int quantums) {
     pcb->pc = 0; // Initialize program counter (to be set when process is created)
     pcb->lr = 0; // Initialize link register
     pcb->spsr = 0; // Initialize saved program status register
+    pcb->cpsr = 0; // Initialize current program status register
     for (int i = 0; i < 13; i++) {
         pcb->registers[i] = 0; // Initialize general-purpose registers
     }
@@ -16,6 +17,8 @@ void initialize_pcb(PCB *pcb, int pid, int quantums) {
     pcb->state = READY; // Initialize process state (READY)
     pcb->max_quantums = quantums;
     pcb->curr_quantums = 0;
+    pcb->syscall_id = -1;
+    pcb->termination_status = -1;
 }
 
 void configure_process(PCB *pcb, const char *name, process_entry_t entry) {
@@ -37,6 +40,7 @@ void setup_initial_process_stack(PCB *pcb, unsigned int stack_top) {
     pcb->pc = (int)pcb->entry;
     pcb->lr = (int)pcb->entry;
     pcb->spsr = 0;
+    pcb->cpsr = 0;
 }
 
 // Save from IRQ frame into PCB

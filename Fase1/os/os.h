@@ -4,7 +4,7 @@
 #include "pcb.h"
 #include "platform.h"
 #include "scheduler.h"
-#include "../libraries/io.h"
+#include "io.h"
 #include "../libraries/time.h"
 
 void enable_irq(void);

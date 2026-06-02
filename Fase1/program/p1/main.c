@@ -1,6 +1,5 @@
 #include "../../libraries/io.h"
 #include "../../libraries/time.h"
-#include "../../libraries/std_functions.h"
 
 int main() {
     // Print 0-9 infinite times

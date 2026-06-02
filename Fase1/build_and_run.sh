@@ -46,14 +46,15 @@ declare -A FILES=(
     ["os/$FOLDER/svc.c"]="svc"
     ["os/$FOLDER/watchdog.c"]="watchdog"
     ["libraries/io.c"]="io"
+    ["libraries/io_common.c"]="io_common"
     ["libraries/time.c"]="time"
-    ["libraries/std_functions.c"]="std"
     ["program/p1/main.c"]="p1"
     ["program/p2/main.c"]="p2"
     ["program/p3/main.c"]="p3"
     ["os/pcb.c"]="pcb"
     ["os/scheduler.c"]="scheduler"
     ["os/interrupts.c"]="interrupts"
+    ["os/io.c"]="os_io"
 )
 
 COMMON_CFLAGS="-g -c -ffreestanding -nostdlib -nostartfiles -Wall -O1 -I os -I libraries $PLATFORM_FLAG"
@@ -76,7 +77,7 @@ for OBJ in "${!P_TO_LINK[@]}"; do
     echo "Linking: $OBJ for ${P_TO_LINK[$OBJ]}"
     arm-none-eabi-gcc -nostartfiles -T "${P_TO_LINK[$OBJ]}" \
         -o "${OBJ%.o}.elf" \
-        bin/start.o bin/io.o bin/time.o bin/uart.o bin/std.o $OBJ
+        bin/start.o bin/io.o bin/io_common.o bin/time.o $OBJ
 done
 
 declare -A OS_TO_LINK=(
@@ -88,7 +89,7 @@ for OBJ in "${!OS_TO_LINK[@]}"; do
     echo "Linking: $OBJ for ${OS_TO_LINK[$OBJ]}"
     arm-none-eabi-gcc -nostartfiles -T "${OS_TO_LINK[$OBJ]}" \
         -o "${OBJ%.o}.elf" \
-        bin/root.o bin/io.o bin/time.o bin/uart.o bin/pcb.o bin/scheduler.o bin/timer.o bin/svc.o bin/watchdog.o bin/interrupts.o $OBJ
+        bin/root.o bin/os_io.o bin/io_common.o bin/time.o bin/uart.o bin/pcb.o bin/scheduler.o bin/timer.o bin/svc.o bin/watchdog.o bin/interrupts.o $OBJ
 done
 
 echo "Converting ELFs to binary..."
