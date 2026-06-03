@@ -3,6 +3,8 @@
 
 #include "scheduler.h"
 
+extern int os_idle_sp;
+
 enum SyscallID {
     SYS_YIELD = 0,
     SYS_EXIT = 1,

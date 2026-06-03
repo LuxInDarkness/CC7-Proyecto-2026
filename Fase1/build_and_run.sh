@@ -54,7 +54,7 @@ declare -A FILES=(
     ["os/pcb.c"]="pcb"
     ["os/scheduler.c"]="scheduler"
     ["os/interrupts.c"]="interrupts"
-    ["os/io.c"]="os_io"
+    ["os/os_io.c"]="os_io"
 )
 
 COMMON_CFLAGS="-g -c -ffreestanding -nostdlib -nostartfiles -Wall -O1 -I os -I libraries $PLATFORM_FLAG"

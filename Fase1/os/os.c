@@ -1,5 +1,7 @@
 #include "os.h"
 
+int os_idle_sp = 0;
+
 static void initialize_processes(void) {
     create_process(0, "OS", (process_entry_t)OS_ENTRY_ADDR, OS_STACK_TOP_ADDR, 1);
     create_process(1, "P1", (process_entry_t)P1_ENTRY_ADDR, P1_STACK_TOP_ADDR, 1);
@@ -8,6 +10,9 @@ static void initialize_processes(void) {
 }
 
 int main() {
+    // Capture OS stack pointer before doing anything else
+    __asm__ volatile ("mov %0, sp" : "=r"(os_idle_sp));
+
     watchdog_disable();
     os_init_regs();
     intc_init();

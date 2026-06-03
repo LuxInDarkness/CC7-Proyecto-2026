@@ -1,5 +1,5 @@
 #include "scheduler.h"
-#include "../libraries/io.h"
+#include "os_io.h"
 
 static ProcessQueue process_queue;
 static PCB *active_process = 0;
