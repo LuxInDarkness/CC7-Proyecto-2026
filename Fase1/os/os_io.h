@@ -1,10 +1,10 @@
 #ifndef IO_H
 #define IO_H
 
-#include "io_common.h"
-#include "user_syscalls.h"
+#include "../libraries/io_common.h"
 
-extern char uart_getc(void);
+extern void uart_putc(char c);
+void os_write(const char *s);
 void vprint(const char *s, va_list args);
 void print(const char *s, ...);
 

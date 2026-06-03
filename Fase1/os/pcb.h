@@ -16,11 +16,14 @@ typedef struct PCB {
     int pc;  // Program counter
     int lr;  // Link register
     int spsr; // Saved Program Status Register
+    int cpsr; // Current Program Status Register
     int registers[13]; // General-purpose registers (r0-r12)
     int state; // Process state (e.g., READY, RUNNING, BLOCKED)
     const char *name; // Human-readable process name
     int max_quantums; // Number of timer operations that the process will be allowed to run
     int curr_quantums;
+    int syscall_id; // If the process is currently in a syscall, this will be set to the syscall number, otherwise -1
+    int termination_status; // If the process has terminated, this will be set to the exit code, otherwise -1
     process_entry_t entry; // Kernel-managed process entry point
 } PCB;
 
