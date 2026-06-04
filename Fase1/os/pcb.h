@@ -45,6 +45,7 @@ typedef struct StackFrame {
     int lr;       // adjusted return address
 } StackFrame;
 
+extern int next_spsr;
 extern int read_svc_sp(void);
 extern void write_svc_sp(int sp);
 extern void write_svc_sp_from_svc(int sp);

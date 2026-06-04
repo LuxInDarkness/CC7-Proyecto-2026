@@ -120,6 +120,9 @@ swi_handler:
     ldmfd sp!, {r0-r12, lr}     @ restore frame, sp is now original_sp
                                 @ lr = next process PC (written by swi_c_handler)
     ldr   sp, [sp]              @ sp = *original_sp = next process SP
+    ldr   r0, =next_spsr         @ Load address of global next_spsr
+    ldr   r0, [r0]               @ Load next_spsr value
+    msr   spsr_cxsf, r0          @ Override SPSR_svc with next process's SPSR
     movs  pc, lr                @ exception return, jump to next process
 
 @ ===========================================================================
@@ -155,6 +158,9 @@ prefetch_handler:
     str   r0, [sp, #56]         @ Store next SP at original_sp position
     ldmfd sp!, {r0-r12, lr}     @ Restore frame (now has next process context)
     ldr   sp, [sp]              @ SP = next process stack pointer
+    ldr   r0, =next_spsr         @ Load address of global next_spsr
+    ldr   r0, [r0]               @ Load next_spsr value
+    msr   spsr_cxsf, r0          @ Override SPSR_abt with next process's SPSR
     subs  pc, lr, #0            @ Exception return — CPSR = SPSR_abt, PC = LR
 
 @ ===========================================================================
@@ -176,7 +182,10 @@ data_handler:
     str   r0, [sp, #56]         @ Store next SP at original_sp position
     ldmfd sp!, {r0-r12, lr}     @ Restore frame
     ldr   sp, [sp]              @ SP = next process stack pointer
-    subs  pc, lr, #0            @ Exception return — CPSR = SPSR_abt, PC = LR
+    ldr   r0, =next_spsr         @ Load address of global next_spsr
+    ldr   r0, [r0]               @ Load next_spsr value
+    msr   spsr_cxsf, r0          @ Override SPSR_abt with next process's SPSR
+    subs  pc, lr, #0            @ Exception return — restore CPSR from SPSR_abt
 
 fiq_handler:
     b hang
@@ -202,6 +211,9 @@ irq_handler:
                                 @ and acknowledge the interrupt at the INTCPS controller
 
     ldmfd sp!, {r0-r12, lr}     @ Restore full context
+    ldr   r0, =next_spsr         @ Load address of global next_spsr
+    ldr   r0, [r0]               @ Load next_spsr value
+    msr   spsr_cxsf, r0          @ Override SPSR_irq with process's SPSR
     subs  pc, lr, #0            @ Exception return: restore CPSR from SPSR_irq, branch to LR
 
 @ ===========================================================================

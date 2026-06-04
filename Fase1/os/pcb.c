@@ -1,5 +1,7 @@
 #include "pcb.h"
 
+int next_spsr = 0;
+
 #define INITIAL_CONTEXT_WORDS 14u
 
 void initialize_pcb(PCB *pcb, int pid, int quantums) {
@@ -42,7 +44,7 @@ void setup_initial_process_stack(PCB *pcb, unsigned int stack_top) {
     pcb->pc = (int)pcb->entry;
     pcb->lr = (int)pcb->entry;
     
-    pcb->spsr = 0;
+    pcb->spsr = 0x10;   // USR mode
     pcb->cpsr = 0;
 }
 
@@ -61,6 +63,7 @@ void restore_process_state(PCB *pcb, StackFrame *frame) {
         frame->r[i] = pcb->registers[i];
     frame->lr = pcb->pc;   // subs pc, lr, #0 will jump here on return
     write_svc_sp(pcb->sp);
+    next_spsr = pcb->spsr;
 }
 
 void set_process_state(PCB *pcb, int state) {
