@@ -51,6 +51,12 @@ int fault_c_handler(void *frame, unsigned int fsr, unsigned int far, int is_pref
     StackFrame *f = (StackFrame *)frame;
     FaultType type = classify_fault(fsr);
 
+    // === TRACE: USER_TO_KERNEL fault ===
+    if (ACTIVE_PROCESS != 0) {
+        print("MODE_SWITCH USER_TO_KERNEL pid=%d reason=fault type=%s\n",
+              ACTIVE_PROCESS->pid, fault_type_name(type));
+    }
+
     // Diagnostic message
     if (ACTIVE_PROCESS != 0) {
         print("FAULT: pid=%d type=%s addr=0x%X %s\n",
@@ -87,6 +93,12 @@ int fault_c_handler(void *frame, unsigned int fsr, unsigned int far, int is_pref
         for (i = 0; i < 13; i++)
             f->r[i] = ACTIVE_PROCESS->registers[i];
         f->lr = ACTIVE_PROCESS->pc;
+
+        // === TRACE: KERNEL_TO_USER fault_recovery ===
+        if (ACTIVE_PROCESS != 0) {
+            print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=fault_recovery\n",
+                  ACTIVE_PROCESS->pid);
+        }
 
         return ACTIVE_PROCESS->sp;
     }
