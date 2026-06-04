@@ -9,6 +9,17 @@ typedef void (*process_entry_t)(struct PCB *pcb);
 #define BLOCKED 2
 #define TERMINATED 3
 
+// Fault types based on ARM FSR[3:0] status field encoding
+typedef enum {
+    FAULT_NONE = 0,
+    FAULT_ALIGNMENT,
+    FAULT_TRANSLATION,
+    FAULT_DOMAIN,
+    FAULT_PERMISSION,
+    FAULT_EXTERNAL,
+    FAULT_UNKNOWN
+} FaultType;
+
 typedef struct PCB {
     // Process Control Block structure
     int pid; // Process ID
@@ -25,6 +36,8 @@ typedef struct PCB {
     int syscall_id; // If the process is currently in a syscall, this will be set to the syscall number, otherwise -1
     int termination_status; // If the process has terminated, this will be set to the exit code, otherwise -1
     process_entry_t entry; // Kernel-managed process entry point
+    FaultType fault_type;    // Type of fault that terminated this process (FAULT_NONE if no fault)
+    unsigned int fault_address; // Address that caused the fault
 } PCB;
 
 typedef struct StackFrame {

@@ -19,6 +19,8 @@ void initialize_pcb(PCB *pcb, int pid, int quantums) {
     pcb->curr_quantums = 0;
     pcb->syscall_id = -1;
     pcb->termination_status = -1;
+    pcb->fault_type = FAULT_NONE;
+    pcb->fault_address = 0;
 }
 
 void configure_process(PCB *pcb, const char *name, process_entry_t entry) {
@@ -39,6 +41,7 @@ void setup_initial_process_stack(PCB *pcb, unsigned int stack_top) {
     pcb->sp = (int)frame;
     pcb->pc = (int)pcb->entry;
     pcb->lr = (int)pcb->entry;
+    
     pcb->spsr = 0;
     pcb->cpsr = 0;
 }

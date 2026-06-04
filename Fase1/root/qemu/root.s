@@ -48,18 +48,26 @@ reset_handler:
     ldr sp, =_irq_stack_top
 
     @ -----------------------------------------------------------------------
-    @ 2. Set up SVC mode stack (default operating mode)
+    @ 2. Set up ABT mode stack
+    @    Switch to ABT mode (0x17), disable IRQ+FIQ, set ABT stack pointer.
+    @    The abort handlers push 14 registers (56 bytes) on this stack.
+    @ -----------------------------------------------------------------------
+    msr cpsr_c, #0xD7           @ ABT mode | FIQ disabled | IRQ disabled
+    ldr sp, =_abt_stack_top
+
+    @ -----------------------------------------------------------------------
+    @ 3. Set up SVC mode stack (default operating mode)
     @ -----------------------------------------------------------------------
     msr cpsr_c, #0xD3           @ SVC mode | FIQ disabled | IRQ disabled
     ldr sp, =_stack_top
 
     @ -----------------------------------------------------------------------
-    @ 3. No VBAR on ARM926EJ-S — vectors are fixed at 0x00000000.
+    @ 4. No VBAR on ARM926EJ-S — vectors are fixed at 0x00000000.
     @    Nothing to configure here; the linker places .vectors at 0x0.
     @ -----------------------------------------------------------------------
 
     @ -----------------------------------------------------------------------
-    @ 4. Zero out .bss section
+    @ 5. Zero out .bss section
     @ -----------------------------------------------------------------------
     ldr r0, =_bss_start
     ldr r1, =_bss_end
@@ -70,7 +78,7 @@ bss_zero_loop:
     blt bss_zero_loop
 
     @ -----------------------------------------------------------------------
-    @ 5. Jump to main
+    @ 6. Jump to main
     @ -----------------------------------------------------------------------
     bl main
 
@@ -104,11 +112,51 @@ swi_handler:
     ldr   sp, [sp]              @ sp = *original_sp = next process SP
     movs  pc, lr                @ exception return, jump to next process
 
+@ ===========================================================================
+@ Prefetch Abort Handler
+@
+@ ARM926EJ-S abort entry: CPU switches to ABT mode, LR_abt = fault addr + 4.
+@ Saves user context on ABT stack, reads IFSR/IFAR from CP15, calls the C
+@ fault handler. The C handler classifies the fault, terminates the active
+@ process, and switches to the next ready process.
+@
+@ Same CP15 registers as ARMv7-A for FSR/FAR — ARMv5 shares this mapping.
+@ ===========================================================================
 prefetch_handler:
-    b hang
+    sub   lr, lr, #4            @ LR_abt = fault address + 4, adjust to fault addr
+    stmfd sp!, {r0-r12, lr}     @ Save user context on abort stack (56 bytes)
+    mrc   p15, 0, r2, c5, c0, 1 @ Read IFSR (Instruction Fault Status Register)
+    mrc   p15, 0, r3, c6, c0, 2 @ Read IFAR (Instruction Fault Address Register)
+    mov   r0, sp                @ arg0: StackFrame*
+    mov   r1, r2                @ arg1: FSR
+    mov   r2, r3                @ arg2: FAR
+    mov   r3, #1                @ arg3: is_prefetch = 1
+    bl    fault_c_handler       @ returns next process SP in r0
+    str   r0, [sp, #56]         @ Store next SP at original_sp position
+    ldmfd sp!, {r0-r12, lr}     @ Restore frame (now has next process context)
+    ldr   sp, [sp]              @ SP = next process stack pointer
+    subs  pc, lr, #0            @ Exception return — restore CPSR from SPSR_abt
 
+@ ===========================================================================
+@ Data Abort Handler
+@
+@ ARM926EJ-S data abort: LR_abt = fault address + 8, subtract 8 for actual
+@ fault address. Reads DFSR/DFAR from CP15 and calls fault_c_handler().
+@ ===========================================================================
 data_handler:
-    b hang
+    sub   lr, lr, #8            @ LR_abt = fault address + 8, adjust to fault addr
+    stmfd sp!, {r0-r12, lr}     @ Save user context on abort stack
+    mrc   p15, 0, r2, c5, c0, 0 @ Read DFSR (Data Fault Status Register)
+    mrc   p15, 0, r3, c6, c0, 0 @ Read DFAR (Data Fault Address Register)
+    mov   r0, sp                @ arg0: StackFrame*
+    mov   r1, r2                @ arg1: FSR
+    mov   r2, r3                @ arg2: FAR
+    mov   r3, #0                @ arg3: is_prefetch = 0
+    bl    fault_c_handler       @ returns next process SP in r0
+    str   r0, [sp, #56]         @ Store next SP at original_sp position
+    ldmfd sp!, {r0-r12, lr}     @ Restore frame
+    ldr   sp, [sp]              @ SP = next process stack pointer
+    subs  pc, lr, #0            @ Exception return — restore CPSR from SPSR_abt
 
 fiq_handler:
     b hang
@@ -165,6 +213,12 @@ _bss_start:
 _irq_stack_bottom:
     .skip 0x4000                @ 16KB IRQ stack
 _irq_stack_top:
+
+@ ABT mode stack — used by prefetch and data abort handlers
+.align 4
+_abt_stack_bottom:
+    .skip 0x400                 @ 1KB abort stack
+_abt_stack_top:
 
 @ Main SVC stack
 .align 4
