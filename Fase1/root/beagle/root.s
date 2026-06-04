@@ -39,7 +39,17 @@ reset_handler:
     ldr sp, =_irq_stack_top
 
     @ -----------------------------------------------------------------------
-    @ 2. Switch to SVC mode and set up the main stack.
+    @ 2. Set up ABT (Abort) mode stack.
+    @    0xD7 = 0b11010111: ABT mode (0x17) | FIQ disabled | IRQ disabled
+    @    The abort handlers use this stack to save user context before
+    @    calling the C fault handler. Each abort pushes 14 registers (56
+    @    bytes), so 1KB is more than enough.
+    @ -----------------------------------------------------------------------
+    msr cpsr_c, #0xD7
+    ldr sp, =_abt_stack_top
+
+    @ -----------------------------------------------------------------------
+    @ 3. Switch to SVC mode and set up the main stack.
     @    0xD3 = 0b11010011: SVC mode (0x13) | FIQ disabled | IRQ disabled
     @    IRQs are still disabled here — enable_irq() is called from C after
     @    all peripherals are fully initialized.
@@ -48,7 +58,7 @@ reset_handler:
     ldr sp, =_stack_top
 
     @ -----------------------------------------------------------------------
-    @ 3. Set the Vector Base Address Register (VBAR) to point at our table.
+    @ 4. Set the Vector Base Address Register (VBAR) to point at our table.
     @    cp15 c12 c0 0 is the VBAR on Cortex-A8 (ARMv7-A).
     @    This is what allows the vector table to live at an arbitrary address
     @    instead of being fixed at 0x00000000 as on older ARM cores.
@@ -57,7 +67,7 @@ reset_handler:
     mcr p15, 0, r0, c12, c0, 0
 
     @ -----------------------------------------------------------------------
-    @ 4. Zero the .bss section.
+    @ 5. Zero the .bss section.
     @    The C standard requires uninitialized globals to be zero. The
     @    bootloader on BeagleBone may not do this, so we do it ourselves.
     @    __bss_start__ and __bss_end__ are symbols defined in the linker script.
@@ -71,7 +81,7 @@ bss_zero_loop:
     blt  bss_zero_loop
 
     @ -----------------------------------------------------------------------
-    @ 5. Jump to C entry point.
+    @ 6. Jump to C entry point.
     @ -----------------------------------------------------------------------
     bl main
 
@@ -112,11 +122,61 @@ swi_handler:
     ldr   sp, [sp]              @ sp = *original_sp = next process SP
     movs  pc, lr                @ exception return, jump to next process
 
+@ ===========================================================================
+@ Prefetch Abort Handler
+@
+@ ARM abort entry conditions:
+@   - CPU switches to ABT mode automatically
+@   - LR_abt = fault address + 4 (prefetch) or + 8 (data abort)
+@   - CPSR saved to SPSR_abt, IRQs masked
+@
+@ The handler saves the full user context (r0-r12, adjusted LR) on the
+@ ABT stack, reads the CP15 fault registers (IFSR/IFAR for prefetch,
+@ DFSR/DFAR for data), and calls fault_c_handler() in C. The C handler
+@ classifies the fault, terminates the active process, and switches to
+@ the next ready process. If no ready process exists, the CPU idles
+@ using os_idle_sp.
+@
+@ Return path: same as SWI handler — the C handler writes the next
+@ process's context into the stack frame and returns its SP. We store
+@ the returned SP at original_sp, restore the frame via ldmfd, load
+@ the new SP, and do a standard exception return with subs pc, lr, #0.
+@ ===========================================================================
 prefetch_handler:
-    b hang
+    sub   lr, lr, #4            @ LR_abt = fault address + 4, subtract 4
+    stmfd sp!, {r0-r12, lr}     @ Save user context on abort stack (56 bytes)
+    mrc   p15, 0, r2, c5, c0, 1 @ Read IFSR (Instruction Fault Status Register)
+    mrc   p15, 0, r3, c6, c0, 2 @ Read IFAR (Instruction Fault Address Register)
+    mov   r0, sp                @ arg0: StackFrame*
+    mov   r1, r2                @ arg1: FSR
+    mov   r2, r3                @ arg2: FAR
+    mov   r3, #1                @ arg3: is_prefetch = 1
+    bl    fault_c_handler       @ returns next process SP in r0
+    str   r0, [sp, #56]         @ Store next SP at original_sp position
+    ldmfd sp!, {r0-r12, lr}     @ Restore frame (now has next process context)
+    ldr   sp, [sp]              @ SP = next process stack pointer
+    subs  pc, lr, #0            @ Exception return — CPSR = SPSR_abt, PC = LR
 
+@ ===========================================================================
+@ Data Abort Handler
+@
+@ Same logic as prefetch_handler but reads DFSR/DFAR and adjusts LR_abt by
+@ -8 (data aborts leave LR = fault address + 8).
+@ ===========================================================================
 data_handler:
-    b hang
+    sub   lr, lr, #8            @ LR_abt = fault address + 8, subtract 8
+    stmfd sp!, {r0-r12, lr}     @ Save user context on abort stack
+    mrc   p15, 0, r2, c5, c0, 0 @ Read DFSR (Data Fault Status Register)
+    mrc   p15, 0, r3, c6, c0, 0 @ Read DFAR (Data Fault Address Register)
+    mov   r0, sp                @ arg0: StackFrame*
+    mov   r1, r2                @ arg1: FSR
+    mov   r2, r3                @ arg2: FAR
+    mov   r3, #0                @ arg3: is_prefetch = 0
+    bl    fault_c_handler       @ returns next process SP in r0
+    str   r0, [sp, #56]         @ Store next SP at original_sp position
+    ldmfd sp!, {r0-r12, lr}     @ Restore frame
+    ldr   sp, [sp]              @ SP = next process stack pointer
+    subs  pc, lr, #0            @ Exception return — CPSR = SPSR_abt, PC = LR
 
 fiq_handler:
     b hang
@@ -191,6 +251,12 @@ enable_irq:
 _irq_stack_bottom:
     .skip 0x1000                @ 4KB — sufficient for nested C handler calls
 _irq_stack_top:
+
+@ ABT mode stack — used by prefetch and data abort handlers
+.align 4
+_abt_stack_bottom:
+    .skip 0x400                 @ 1KB abort stack (14 regs × 4 = 56 bytes per entry)
+_abt_stack_top:
 
 @ SVC mode stack — used by main() and all normal C code
 _stack_bottom:
