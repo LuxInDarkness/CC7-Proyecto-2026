@@ -2,9 +2,8 @@ ENTRY(_start)
 
 STACK_SIZE = 8K;
 
-MEMORY
-{
-    ram : ORIGIN = 0x82000000, LENGTH = 64K
+MEMORY {
+    ram : ORIGIN = 0x82000000, LENGTH = 256K
 }
 
 SECTIONS
@@ -32,8 +31,11 @@ SECTIONS
         __bss_end__ = .;
     } > ram
 
-    _stack_top = ORIGIN(ram) + LENGTH(ram);
-    _stack_bottom = _stack_top - STACK_SIZE;
+    _stack_top        = ORIGIN(ram) + LENGTH(ram);
+    _stack_bottom     = _stack_top - 0x2000;
+    _irq_stack_top    = _stack_bottom;
+    _irq_stack_bottom = _irq_stack_top - 0x4000;
 
+    ASSERT(__bss_end__ <= _irq_stack_bottom, "BSS overlaps IRQ stack")
     ASSERT(__bss_end__ <= _stack_bottom, "OS image overlaps reserved stack region")
 }
