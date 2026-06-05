@@ -1,5 +1,5 @@
-#ifndef IO_H
-#define IO_H
+#ifndef OS_IO_H
+#define OS_IO_H
 
 #include "../libraries/io_common.h"
 
@@ -8,4 +8,4 @@ void os_write(const char *s);
 void vprint(const char *s, va_list args);
 void print(const char *s, ...);
 
-#endif // IO_H
+#endif // OS_IO_H

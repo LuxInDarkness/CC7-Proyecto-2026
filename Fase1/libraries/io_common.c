@@ -5,6 +5,16 @@
 #define FLOAT_TO_STRING_BUFFER_SIZE 32
 #define PRINT_BUFFER_SIZE 256
 
+// Bare-metal memcpy — libc is not linked with -nostdlib
+void *memcpy(void *dest, const void *src, unsigned int n) {
+    unsigned char *d = (unsigned char *)dest;
+    const unsigned char *s = (const unsigned char *)src;
+    for (unsigned int i = 0; i < n; i++) {
+        d[i] = s[i];
+    }
+    return dest;
+}
+
 // Convert a string representing an integer to an actual integer
 int alpha2int(const char *s) {
     int num = 0;
