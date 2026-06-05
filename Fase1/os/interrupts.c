@@ -3,19 +3,34 @@
 
 int swi_c_handler(StackFrame *frame, int original_sp) {
     int syscall_id = frame->r[0];  // r0 at time of svc instruction
+    int result_sp;
 
-    if (syscall_id == SYS_YIELD) {
-        return syscall_yield(frame, original_sp);
-    } else if (syscall_id == SYS_EXIT) {
-        return syscall_exit(frame, original_sp);
-    } else if (syscall_id == SYS_WRITE) {
-        syscall_write(frame, original_sp);
-        return original_sp;  // no context switch — return to same process
+    // === TRACE: USER_TO_KERNEL syscall ===
+    if (ACTIVE_PROCESS != 0) {
+        print("MODE_SWITCH USER_TO_KERNEL pid=%d reason=syscall id=%d\n",
+              ACTIVE_PROCESS->pid, syscall_id);
     }
 
-    // Unknown syscall — return to same process unchanged
-    frame->r[0] = -1;  // return value of -1 indicates unknown syscall
-    return original_sp;
+    if (syscall_id == SYS_YIELD) {
+        result_sp = syscall_yield(frame, original_sp);
+    } else if (syscall_id == SYS_EXIT) {
+        result_sp = syscall_exit(frame, original_sp);
+    } else if (syscall_id == SYS_WRITE) {
+        syscall_write(frame, original_sp);
+        result_sp = original_sp;  // no context switch — return to same process
+    } else {
+        // Unknown syscall — return to same process unchanged
+        frame->r[0] = -1;  // return value of -1 indicates unknown syscall
+        result_sp = original_sp;
+    }
+
+    // === TRACE: KERNEL_TO_USER syscall_return ===
+    if (ACTIVE_PROCESS != 0) {
+        print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=syscall_return id=%d rc=%d\n",
+              ACTIVE_PROCESS->pid, syscall_id, frame->r[0]);
+    }
+
+    return result_sp;
 }
 
 // Returns 1 if the range [addr, addr+len) is within the process's mapped region
@@ -37,7 +52,7 @@ static int is_valid_user_range(unsigned int addr, unsigned int len) {
 
 // SYS_YIELD — save current process, switch to next ready process
 static int syscall_yield(StackFrame *frame, int original_sp) {
-    if (QUEUE->ready_index == 0) return original_sp;  // nothing to switch to
+    if (QUEUE->ready_index == 0) return os_idle_sp;  // nothing to switch to
 
     if (ACTIVE_PROCESS != 0) {
         save_process_state(ACTIVE_PROCESS, frame, 0, original_sp);
@@ -59,7 +74,9 @@ static int syscall_yield(StackFrame *frame, int original_sp) {
 
     print("Yielding to process %s\n", ACTIVE_PROCESS->name);
     
-    return ACTIVE_PROCESS->sp;
+    // Return kernel stack top so the SWI assembly sets sp_svc
+    // to the shared kernel stack, not a user stack address.
+    return os_idle_sp;
 }
 
 // SYS_WRITE — write buffer to UART, return to same process
@@ -121,7 +138,9 @@ static int syscall_exit(StackFrame *frame, int original_sp) {
             frame->r[i] = ACTIVE_PROCESS->registers[i];
         frame->lr = ACTIVE_PROCESS->pc;
 
-        return ACTIVE_PROCESS->sp;
+        // Return kernel stack top so the SWI assembly sets sp_svc
+        // to the shared kernel stack, not a user stack address.
+        return os_idle_sp;
     }
 
     extern void hang(void);
@@ -130,32 +149,74 @@ static int syscall_exit(StackFrame *frame, int original_sp) {
 }
 
 void context_switch(StackFrame * frame, int quantums, int is_irq, int original_sp) {
-    if (QUEUE->ready_index == 0) return;
+    static int initial_launch_traced = 0;
+
+    // === TRACE: USER_TO_KERNEL timer_irq ===
+    // Only trace for real user processes (pid != 0).
+    // pid=0 is the OS idle loop running in SVC mode, not a user process.
+    if (is_irq && ACTIVE_PROCESS != 0 && ACTIVE_PROCESS->pid != 0) {
+        print("MODE_SWITCH USER_TO_KERNEL pid=%d reason=timer_irq\n",
+              ACTIVE_PROCESS->pid);
+    }
+
+    if (QUEUE->ready_index == 0) {
+        if (is_irq && ACTIVE_PROCESS != 0) {
+            print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=dispatch\n",
+                  ACTIVE_PROCESS->pid);
+        }
+        return;
+    }
 
     ACTIVE_PROCESS->curr_quantums += quantums;
     if (ACTIVE_PROCESS->curr_quantums < ACTIVE_PROCESS->max_quantums) {
-        print("%s has been active %d quantums, with a max %d quantums\n", ACTIVE_PROCESS->name, ACTIVE_PROCESS->curr_quantums, ACTIVE_PROCESS->max_quantums);
+        print("%s has been active %d quantums, with a max %d quantums\n",
+              ACTIVE_PROCESS->name, ACTIVE_PROCESS->curr_quantums,
+              ACTIVE_PROCESS->max_quantums);
         print("Not time to change yet........................................................\n");
+        if (is_irq && ACTIVE_PROCESS != 0) {
+            print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=dispatch\n",
+                  ACTIVE_PROCESS->pid);
+        }
         return;
     }
 
     ACTIVE_PROCESS->curr_quantums = 0;
-    print("Process %s, time to change...............................................\n", ACTIVE_PROCESS->name);
+    print("Process %s, time to change...............................................\n",
+          ACTIVE_PROCESS->name);
 
-    // Save current process — read directly from the IRQ stack frame
+    // Save current process
     if (ACTIVE_PROCESS != 0) {
-        save_process_state(ACTIVE_PROCESS, frame, is_irq, original_sp);      // save into pool entry directly
-        move_process(ACTIVE_PROCESS, READY);            // then move to ready with state intact
+        save_process_state(ACTIVE_PROCESS, frame, is_irq, original_sp);
+
+        // OS idle process (pid=0): terminate instead of moving to READY.
+        // This prevents pid=0 from being dispatched as a user process,
+        // which would cause a PERMISSION fault (violates Section 3.2).
+        if (ACTIVE_PROCESS->pid == 0) {
+            move_process(ACTIVE_PROCESS, TERMINATED);
+        } else {
+            move_process(ACTIVE_PROCESS, READY);
+        }
         ACTIVE_PROCESS = 0;
     }
 
-    // Restore next process — overwrite the IRQ stack frame
+    // Restore next process
     PCB *next_ready = &QUEUE->ready_pool[0];
     move_process(next_ready, RUNNING);
-    next_ready = 0;                  // stale after move
+    next_ready = 0;
 
-    // Refresh pointer into running pool
     ACTIVE_PROCESS = &QUEUE->running_pool[QUEUE->running_index - 1];
     restore_process_state(ACTIVE_PROCESS, frame);
+
+    // === TRACE: KERNEL_TO_USER (initial_launch or dispatch) ===
+    if (is_irq && ACTIVE_PROCESS != 0) {
+        if (!initial_launch_traced) {
+            initial_launch_traced = 1;
+            print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=initial_launch\n",
+                  ACTIVE_PROCESS->pid);
+        } else {
+            print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=dispatch\n",
+                  ACTIVE_PROCESS->pid);
+        }
+    }
 }
 
