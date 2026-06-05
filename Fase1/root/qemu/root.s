@@ -203,6 +203,51 @@ GET32:
     bx  lr
 
 @ ===========================================================================
+@ enter_first_task — explicit kernel-to-user transition (Spec Section 3.4)
+@
+@ r0 = user stack pointer  (SP_usr)
+@ r1 = user program counter (entry point)
+@ r2 = target SPSR          (0x10 = USR mode, IRQ enabled)
+@
+@ Constructs the first user context and does an exception-style return
+@ into USR mode.  Never returns to the caller.
+@ ===========================================================================
+.globl enter_first_task
+enter_first_task:
+    msr   spsr_cxsf, r2          @ SPSR_svc = target SPSR (USR mode)
+
+    @ Write SP_usr by temporarily switching to USR mode
+    mrs   r3, cpsr
+    orr   r4, r3, #0xC0          @ disable IRQ+FIQ during the switch
+    bic   r4, r4, #0x1F
+    orr   r4, r4, #0x10          @ USR mode
+    msr   cpsr_c, r4
+    mov   sp, r0                  @ SP_usr = user stack
+    msr   cpsr_c, r3              @ back to SVC mode
+
+    @ Set LR_svc for the exception return
+    mov   lr, r1
+
+    @ Zero out user-visible registers (r0-r12)
+    mov   r0, #0
+    mov   r1, #0
+    mov   r2, #0
+    mov   r3, #0
+    mov   r4, #0
+    mov   r5, #0
+    mov   r6, #0
+    mov   r7, #0
+    mov   r8, #0
+    mov   r9, #0
+    mov   r10, #0
+    mov   r11, #0
+    mov   r12, #0
+
+    @ Exception return: CPSR <- SPSR_svc, PC <- LR_svc
+    @ CPU enters USR mode with IRQs enabled (per SPSR bit 7 = 0)
+    movs  pc, lr
+
+@ ===========================================================================
 @ Enable IRQs — clear I bit (bit 7) in CPSR
 @ ===========================================================================
 .globl enable_irq

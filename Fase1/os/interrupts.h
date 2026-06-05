@@ -12,8 +12,8 @@ enum SyscallID {
     SYS_WRITE = 2
 };
 
-void context_switch(StackFrame * frame, int quantums, int is_irq, int original_sp);
-int swi_c_handler(StackFrame * frame, int original_sp);
+void context_switch(StackFrame *frame, int quantums, int is_irq);
+int swi_c_handler(StackFrame *frame, int original_sp);
 static int syscall_yield(StackFrame *frame, int original_sp);
 static int syscall_exit(StackFrame *frame, int original_sp);
 static void syscall_write(StackFrame *frame, int original_sp);

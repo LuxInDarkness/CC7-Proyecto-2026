@@ -2,7 +2,7 @@
 #include "os_io.h"
 
 int swi_c_handler(StackFrame *frame, int original_sp) {
-    // Validate caller originated from USR mode 
+    // Validate caller originated from USR mode
     int spsr = read_spsr_svc();
     int caller_mode = spsr & 0x1F;
     if (caller_mode != 0x10) {
@@ -11,6 +11,7 @@ int swi_c_handler(StackFrame *frame, int original_sp) {
     }
 
     int syscall_id = frame->r[0];  // r0 at time of svc instruction
+    int arg1        = frame->r[1];  // r1 — exit code for SYS_EXIT
     int result_sp;
 
     // === TRACE: USER_TO_KERNEL syscall ===
@@ -27,22 +28,23 @@ int swi_c_handler(StackFrame *frame, int original_sp) {
         syscall_write(frame, original_sp);
         result_sp = original_sp;  // no context switch — return to same process
     } else {
-        // Unknown syscall — return to same process unchanged
-        frame->r[0] = -1;  // return value of -1 indicates unknown syscall
+        // Unknown syscall — return to same process with error
+        frame->r[0] = -1;  // -1: invalid syscall ID
         result_sp = original_sp;
     }
 
     // === TRACE: KERNEL_TO_USER syscall_return ===
     if (ACTIVE_PROCESS != 0) {
+        int rc = (syscall_id == SYS_EXIT) ? arg1 : frame->r[0];
         print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=syscall_return id=%d rc=%d\n",
-              ACTIVE_PROCESS->pid, syscall_id, frame->r[0]);
+              ACTIVE_PROCESS->pid, syscall_id, rc);
     }
 
     return result_sp;
 }
 
-// Returns 1 if the range [addr, addr+len) is within the process's mapped region
-// Each process has a 64KB region starting at its entry address
+// Returns 1 if the range [addr, addr+len) is within the process's mapped region.
+// Each process has a 64KB region starting at its base address.
 static int is_valid_user_range(unsigned int addr, unsigned int len) {
     if (ACTIVE_PROCESS == 0) return 0;
     if (len == 0) return 1;
@@ -63,7 +65,7 @@ static int syscall_yield(StackFrame *frame, int original_sp) {
     if (QUEUE->ready_index == 0) return original_sp;  // nothing to switch to
 
     if (ACTIVE_PROCESS != 0) {
-        save_process_state(ACTIVE_PROCESS, frame, 0, original_sp);
+        save_process_state(ACTIVE_PROCESS, frame);
         move_process(ACTIVE_PROCESS, READY);
         ACTIVE_PROCESS = 0;
     }
@@ -74,19 +76,16 @@ static int syscall_yield(StackFrame *frame, int original_sp) {
 
     ACTIVE_PROCESS = &QUEUE->running_pool[QUEUE->running_index - 1];
 
-    int i;
-    for (i = 0; i < 13; i++)
-        frame->r[i] = ACTIVE_PROCESS->registers[i];
-    frame->r[0] = 0;  // return value of yield is always 0
-    frame->lr = ACTIVE_PROCESS->pc;
+    restore_process_state(ACTIVE_PROCESS, frame);
+    frame->r[0] = 0;  // yield return value is always 0
 
     print("Yielding to process %s\n", ACTIVE_PROCESS->name);
-    
+
     return ACTIVE_PROCESS->sp;
 }
 
 // SYS_WRITE — write buffer to UART, return to same process
-// frame->r[1] = fd (always UART)
+// frame->r[1] = fd (must be 1 = UART)
 // frame->r[2] = buf pointer (address in process memory)
 // frame->r[3] = size in bytes
 static void syscall_write(StackFrame *frame, int original_sp) {
@@ -95,8 +94,6 @@ static void syscall_write(StackFrame *frame, int original_sp) {
     unsigned int size = (unsigned int)frame->r[3];
 
     if (fd != 1) {
-        // Invalid fd — write nothing and return 0 bytes written
-        print("Invalid fd %d in syscall write\n", fd);
         frame->r[0] = -2; // Invalid descriptor
         return;
     }
@@ -118,12 +115,12 @@ static void syscall_write(StackFrame *frame, int original_sp) {
     }
 
     // Write return value (bytes written) back into frame->r[0]
-    // so the process receives it as the return value of sys_write()
     frame->r[0] = (int)size;
 }
 
-// SYS_EXIT — terminate the calling process and switch to next
-// frame->r[1] = exit status code
+// SYS_EXIT — terminate the calling process and switch to next.
+// Never returns to the caller — the exit code is saved in arg1 before
+// this function runs, and is used for the trace in swi_c_handler.
 static int syscall_exit(StackFrame *frame, int original_sp) {
     if (ACTIVE_PROCESS != 0) {
         ACTIVE_PROCESS->termination_status = frame->r[1];
@@ -139,22 +136,18 @@ static int syscall_exit(StackFrame *frame, int original_sp) {
 
         ACTIVE_PROCESS = &QUEUE->running_pool[QUEUE->running_index - 1];
 
-        int i;
-        for (i = 0; i < 13; i++)
-            frame->r[i] = ACTIVE_PROCESS->registers[i];
-        frame->lr = ACTIVE_PROCESS->pc;
+        restore_process_state(ACTIVE_PROCESS, frame);
 
         return ACTIVE_PROCESS->sp;
     }
 
+    // No runnable task — halt safely
     extern void hang(void);
-    frame->lr = (int)hang;   // safe fallback — halts without crashing
+    frame->lr = (int)hang;
     return os_idle_sp;
 }
 
-void context_switch(StackFrame * frame, int quantums, int is_irq, int original_sp) {
-    static int initial_launch_traced = 0;
-
+void context_switch(StackFrame *frame, int quantums, int is_irq) {
     // === TRACE: USER_TO_KERNEL timer_irq ===
     if (is_irq && ACTIVE_PROCESS != 0) {
         print("MODE_SWITCH USER_TO_KERNEL pid=%d reason=timer_irq\n",
@@ -188,7 +181,7 @@ void context_switch(StackFrame * frame, int quantums, int is_irq, int original_s
 
     // Save current process
     if (ACTIVE_PROCESS != 0) {
-        save_process_state(ACTIVE_PROCESS, frame, is_irq, original_sp);
+        save_process_state(ACTIVE_PROCESS, frame);
         move_process(ACTIVE_PROCESS, READY);
         ACTIVE_PROCESS = 0;
     }
@@ -201,16 +194,10 @@ void context_switch(StackFrame * frame, int quantums, int is_irq, int original_s
     ACTIVE_PROCESS = &QUEUE->running_pool[QUEUE->running_index - 1];
     restore_process_state(ACTIVE_PROCESS, frame);
 
-    // === TRACE: KERNEL_TO_USER (initial_launch or dispatch) ===
+    // === TRACE: KERNEL_TO_USER dispatch ===
     if (is_irq && ACTIVE_PROCESS != 0) {
-        if (!initial_launch_traced) {
-            initial_launch_traced = 1;
-            print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=initial_launch\n",
-                  ACTIVE_PROCESS->pid);
-        } else {
-            print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=dispatch\n",
-                  ACTIVE_PROCESS->pid);
-        }
+        print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=dispatch\n",
+              ACTIVE_PROCESS->pid);
     }
 }
 

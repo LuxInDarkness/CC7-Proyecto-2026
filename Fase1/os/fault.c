@@ -71,11 +71,12 @@ int fault_c_handler(void *frame, unsigned int fsr, unsigned int far, int is_pref
               is_prefetch ? "(prefetch)" : "(data)");
     }
 
-    // Record fault info in the active process PCB and terminate it
+    // Save process state, record fault info, and terminate
     if (ACTIVE_PROCESS != 0) {
+        save_process_state(ACTIVE_PROCESS, f);
         ACTIVE_PROCESS->fault_type = type;
         ACTIVE_PROCESS->fault_address = far;
-        ACTIVE_PROCESS->termination_status = -1; // terminated by fault, not normal exit
+        ACTIVE_PROCESS->termination_status = -1; // terminated by fault
         move_process(ACTIVE_PROCESS, TERMINATED);
         ACTIVE_PROCESS = 0;
     }
@@ -88,11 +89,8 @@ int fault_c_handler(void *frame, unsigned int fsr, unsigned int far, int is_pref
 
         ACTIVE_PROCESS = &QUEUE->running_pool[QUEUE->running_index - 1];
 
-        // Restore next process's registers into the abort stack frame
-        int i;
-        for (i = 0; i < 13; i++)
-            f->r[i] = ACTIVE_PROCESS->registers[i];
-        f->lr = ACTIVE_PROCESS->pc;
+        // Restore next process's context into the abort stack frame
+        restore_process_state(ACTIVE_PROCESS, f);
 
         // === TRACE: KERNEL_TO_USER fault_recovery ===
         if (ACTIVE_PROCESS != 0) {

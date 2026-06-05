@@ -35,7 +35,7 @@ void timer_irq_handler(StackFrame * frame) {
     // Clear the timer interrupt
     *(ACCESS->TIMER0_INTCLR) = 1;
 
-    context_switch(frame, 1, 1, 0);
+    context_switch(frame, 1, 1);
 
     // Signal end of interrupt
     *(ACCESS->VIC_VECTADDR) = 0;

@@ -48,22 +48,27 @@ void setup_initial_process_stack(PCB *pcb, unsigned int stack_top) {
     pcb->cpsr = 0;
 }
 
-// Save from IRQ frame into PCB
-void save_process_state(PCB *pcb, StackFrame *frame, int is_irq, int original_sp) {
+// Save interrupted user context from exception frame into PCB.
+// Called from IRQ, SVC, or ABT handlers while still in privileged mode.
+// Reads actual SP_usr and the exception-mode SPSR (which holds the user CPSR).
+void save_process_state(PCB *pcb, StackFrame *frame) {
     for (int i = 0; i < 13; i++)
         pcb->registers[i] = frame->r[i];
     pcb->pc = frame->lr;
     pcb->lr = frame->lr;
-    pcb->sp = is_irq? read_svc_sp() : original_sp;
+    pcb->sp   = read_usr_sp();      // actual USR stack pointer
+    pcb->spsr = read_spsr_svc();    // user CPSR at exception entry
 }
 
-// Restore from PCB into IRQ frame so ldmfd picks it up
+// Restore PCB context into the exception frame and prepare for return to USR.
+// Writes SP_usr directly (not through a proxy) and sets next_spsr for the
+// assembly exception-return sequence.
 void restore_process_state(PCB *pcb, StackFrame *frame) {
     for (int i = 0; i < 13; i++)
         frame->r[i] = pcb->registers[i];
-    frame->lr = pcb->pc;   // subs pc, lr, #0 will jump here on return
-    write_svc_sp(pcb->sp);
-    next_spsr = pcb->spsr;
+    frame->lr = pcb->pc;            // exception return will jump here
+    write_usr_sp(pcb->sp);          // set actual SP_usr for the process
+    next_spsr = pcb->spsr;          // used by asm to override SPSR before return
 }
 
 void set_process_state(PCB *pcb, int state) {
