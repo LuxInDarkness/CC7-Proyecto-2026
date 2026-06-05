@@ -186,22 +186,3 @@ enable_irq:
     bic r0, r0, #0x80           @ Clear bit 7 (I bit): 0=IRQs enabled, 1=disabled
     msr cpsr_c, r0              @ Write back control byte only (_c field)
     bx  lr
-
-@ ===========================================================================
-@ Stack Allocation (.bss — zeroed at startup by reset_handler)
-@
-@ Two separate stacks are required because IRQ mode uses a banked SP_irq
-@ register that is entirely independent from the SVC mode SP_svc.
-@ ===========================================================================
-@.section .bss
-@.align 4
-
-@ IRQ mode stack — used exclusively during IRQ exception handling
-@_irq_stack_bottom:
-@    .skip 0x1000                @ 4KB — sufficient for nested C handler calls
-@_irq_stack_top:
-
-@ SVC mode stack — used by main() and all normal C code
-@_stack_bottom:
-@    .skip 0x2000                @ 8KB main stack
-@_stack_top:
