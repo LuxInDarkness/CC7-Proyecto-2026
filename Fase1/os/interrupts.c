@@ -57,8 +57,6 @@ static int syscall_yield(StackFrame *frame, int original_sp) {
     frame->r[0] = 0;  // return value of yield is always 0
     frame->lr = ACTIVE_PROCESS->pc;
 
-    print("Yielding to process %s\n", ACTIVE_PROCESS->name);
-    
     return ACTIVE_PROCESS->sp;
 }
 
@@ -73,7 +71,6 @@ static void syscall_write(StackFrame *frame, int original_sp) {
 
     if (fd != 1) {
         // Invalid fd — write nothing and return 0 bytes written
-        print("Invalid fd %d in syscall write\n", fd);
         frame->r[0] = -2; // Invalid descriptor
         return;
     }
