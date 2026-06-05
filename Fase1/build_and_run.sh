@@ -91,7 +91,8 @@ for OBJ in "${!OS_TO_LINK[@]}"; do
     echo "Linking: $OBJ for ${OS_TO_LINK[$OBJ]}"
     arm-none-eabi-gcc -nostdlib -nostartfiles -T "${OS_TO_LINK[$OBJ]}" \
         -o "${OBJ%.o}.elf" \
-        bin/root.o bin/os_io.o bin/io_common.o bin/time.o bin/uart.o bin/pcb.o bin/scheduler.o bin/timer.o bin/svc.o bin/watchdog.o bin/fault.o bin/interrupts.o $OBJ
+        bin/root.o bin/os_io.o bin/io_common.o bin/time.o bin/uart.o bin/pcb.o bin/scheduler.o bin/timer.o bin/svc.o bin/watchdog.o bin/interrupts.o $OBJ \
+        -lgcc
 done
 
 echo "Converting ELFs to binary..."
