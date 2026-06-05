@@ -80,6 +80,8 @@ static int syscall_yield(StackFrame *frame, int original_sp) {
     frame->r[0] = 0;  // return value of yield is always 0
     frame->lr = ACTIVE_PROCESS->pc;
 
+    next_spsr = ACTIVE_PROCESS->spsr;
+
     print("Yielding to process %s\n", ACTIVE_PROCESS->name);
     
     return ACTIVE_PROCESS->sp;
@@ -144,6 +146,8 @@ static int syscall_exit(StackFrame *frame, int original_sp) {
             frame->r[i] = ACTIVE_PROCESS->registers[i];
         frame->lr = ACTIVE_PROCESS->pc;
 
+        restore_process_state(ACTIVE_PROCESS, frame);
+        
         return ACTIVE_PROCESS->sp;
     }
 

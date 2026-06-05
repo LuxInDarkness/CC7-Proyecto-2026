@@ -109,21 +109,23 @@ undefined_handler:
 @ No -4 adjustment needed unlike IRQ
 @ ===========================================================================
 swi_handler:
-    stmfd sp!, {r0-r12, lr}     @ push frame (56 bytes), sp = frame pointer
-    mov   r0, sp                @ arg1: frame*
-    add   r1, sp, #56           @ arg2: original_sp
-    bl    swi_c_handler         @ r0 = next process SP on return
+    stmfd sp!, {r0-r12, lr}
+    mov   r0, sp
+    add   r1, sp, #56
+    bl    swi_c_handler
+    str   r0, [sp, #56]
+    ldmfd sp!, {r0-r12, lr}
 
-    @ Store next-SP at original_sp (one word above frame top).
-    @ After ldmfd restores sp to original_sp, we load it back.
-    str   r0, [sp, #56]         @ *original_sp = next process SP
-    ldmfd sp!, {r0-r12, lr}     @ restore frame, sp is now original_sp
-                                @ lr = next process PC (written by swi_c_handler)
-    ldr   sp, [sp]              @ sp = *original_sp = next process SP
-    ldr   r0, =next_spsr         @ Load address of global next_spsr
-    ldr   r0, [r0]               @ Load next_spsr value
-    msr   spsr_cxsf, r0          @ Override SPSR_svc with next process's SPSR
-    movs  pc, lr                @ exception return, jump to next process
+    @ Load next process SPSR into SPSR_svc so movs pc, lr
+    @ returns to the correct mode (USR) for the next process
+    @ Before ldmfd, save next_spsr into a callee-saved slot
+    ldr   r1, =next_spsr        @ load BEFORE ldmfd restores r1
+    ldr   r1, [r1]
+    msr   spsr_cxsf, r1         @ set SPSR now, before registers are restored
+
+    ldmfd sp!, {r0-r12, lr}     @ restore all registers including r0 (return value)
+    ldr   sp, [sp]
+    movs  pc, lr
 
 @ ===========================================================================
 @ Prefetch Abort Handler
@@ -203,18 +205,18 @@ fiq_handler:
 @ and branch to LR — this is the ARMv7-A exception return mechanism.
 @ ===========================================================================
 irq_handler:
-    sub   lr, lr, #4            @ Correct LR: undo the +4 offset added by hardware
-    stmfd sp!, {r0-r12, lr}     @ Save full context (r0-r12 + corrected LR) onto IRQ stack
+    sub   lr, lr, #4
+    stmfd sp!, {r0-r12, lr}
+    mov   r0, sp
+    bl    timer_irq_handler
 
-    mov   r0, sp                @ pass IRQ stack pointer as argument to C
-    bl timer_irq_handler        @ Call C handler — must clear the timer interrupt flag
-                                @ and acknowledge the interrupt at the INTCPS controller
+    @ Load next_spsr BEFORE restoring registers
+    ldr   r0, =next_spsr
+    ldr   r0, [r0]
+    msr   spsr_cxsf, r0
 
-    ldmfd sp!, {r0-r12, lr}     @ Restore full context
-    ldr   r0, =next_spsr         @ Load address of global next_spsr
-    ldr   r0, [r0]               @ Load next_spsr value
-    msr   spsr_cxsf, r0          @ Override SPSR_irq with process's SPSR
-    subs  pc, lr, #0            @ Exception return: restore CPSR from SPSR_irq, branch to LR
+    ldmfd sp!, {r0-r12, lr}
+    subs  pc, lr, #0
 
 @ ===========================================================================
 @ Low-level Memory Access

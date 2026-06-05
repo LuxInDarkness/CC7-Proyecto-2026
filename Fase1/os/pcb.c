@@ -54,7 +54,8 @@ void save_process_state(PCB *pcb, StackFrame *frame, int is_irq, int original_sp
         pcb->registers[i] = frame->r[i];
     pcb->pc = frame->lr;
     pcb->lr = frame->lr;
-    pcb->sp = is_irq? read_svc_sp() : original_sp;
+    pcb->sp = is_irq? read_usr_sp() : original_sp;
+    pcb->spsr = read_spsr_svc();
 }
 
 // Restore from PCB into IRQ frame so ldmfd picks it up
@@ -62,7 +63,7 @@ void restore_process_state(PCB *pcb, StackFrame *frame) {
     for (int i = 0; i < 13; i++)
         frame->r[i] = pcb->registers[i];
     frame->lr = pcb->pc;   // subs pc, lr, #0 will jump here on return
-    write_svc_sp(pcb->sp);
+    write_usr_sp(pcb->sp);
     next_spsr = pcb->spsr;
 }
 

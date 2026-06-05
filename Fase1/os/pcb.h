@@ -49,6 +49,8 @@ extern int next_spsr;
 extern int read_svc_sp(void);
 extern void write_svc_sp(int sp);
 extern void write_svc_sp_from_svc(int sp);
+extern int read_usr_sp(void);
+extern void write_usr_sp(int sp);
 void initialize_pcb(PCB *pcb, int pid, int quantums);
 void configure_process(PCB *pcb, const char *name, process_entry_t entry);
 void setup_initial_process_stack(PCB *pcb, unsigned int stack_top);

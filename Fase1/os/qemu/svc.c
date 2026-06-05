@@ -40,3 +40,31 @@ int read_spsr_svc(void) {
     __asm__ volatile("mrs %0, spsr" : "=r"(spsr));
     return spsr;
 }
+
+void write_usr_sp(int sp) {
+    __asm__ volatile (
+        "mrs r1, cpsr\n"
+        "orr r2, r1, #0xC0\n"
+        "bic r2, r2, #0x1F\n"
+        "orr r2, r2, #0x1F\n"    // SYS mode (0x1F) — shares registers with USR
+        "msr cpsr_c, r2\n"
+        "mov sp, %0\n"
+        "msr cpsr_c, r1\n"
+        : : "r"(sp) : "r1", "r2", "memory"
+    );
+}
+
+int read_usr_sp(void) {
+    int sp;
+    __asm__ volatile (
+        "mrs r1, cpsr\n"
+        "orr r2, r1, #0xC0\n"
+        "bic r2, r2, #0x1F\n"
+        "orr r2, r2, #0x1F\n"    // SYS mode
+        "msr cpsr_c, r2\n"
+        "mov %0, sp\n"
+        "msr cpsr_c, r1\n"
+        : "=r"(sp) : : "r1", "r2", "memory"
+    );
+    return sp;
+}
