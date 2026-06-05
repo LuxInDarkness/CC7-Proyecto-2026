@@ -97,6 +97,9 @@ for ELF in bin/*.elf; do
     arm-none-eabi-objcopy -O binary "$ELF" "${ELF%.elf}.bin"
 done
 
+arm-none-eabi-objdump -d bin/os.elf | head -60
+arm-none-eabi-nm -n bin/os.elf | grep -E "bss|stack|_end|_start|_top|_bottom"
+
 echo "Build finished"
 
 if [ "$FOLDER" == "qemu" ]; then
