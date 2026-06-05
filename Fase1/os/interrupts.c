@@ -2,6 +2,14 @@
 #include "os_io.h"
 
 int swi_c_handler(StackFrame *frame, int original_sp) {
+    // Validate caller originated from USR mode 
+    int spsr = read_spsr_svc();
+    int caller_mode = spsr & 0x1F;
+    if (caller_mode != 0x10) {
+        frame->r[0] = -1;       // reject: not a user syscall
+        return original_sp;     // return to same context unchanged
+    }
+
     int syscall_id = frame->r[0];  // r0 at time of svc instruction
     int result_sp;
 

@@ -28,3 +28,9 @@ void write_svc_sp_from_svc(int sp) {
         : : "r"(sp) : "memory"
     );
 }
+
+int read_spsr_svc(void) {
+    int spsr;
+    __asm__ volatile("mrs %0, spsr" : "=r"(spsr));
+    return spsr;
+}

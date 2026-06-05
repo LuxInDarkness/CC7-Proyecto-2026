@@ -4,6 +4,7 @@
 #include "scheduler.h"
 
 extern int os_idle_sp;
+extern int read_spsr_svc(void);
 
 enum SyscallID {
     SYS_YIELD = 0,
