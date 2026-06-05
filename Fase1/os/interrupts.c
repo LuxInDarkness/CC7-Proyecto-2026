@@ -52,7 +52,7 @@ static int is_valid_user_range(unsigned int addr, unsigned int len) {
 
 // SYS_YIELD — save current process, switch to next ready process
 static int syscall_yield(StackFrame *frame, int original_sp) {
-    if (QUEUE->ready_index == 0) return original_sp;  // nothing to switch to
+    if (QUEUE->ready_index == 0) return os_idle_sp;  // nothing to switch to
 
     if (ACTIVE_PROCESS != 0) {
         save_process_state(ACTIVE_PROCESS, frame, 0, original_sp);
@@ -74,7 +74,9 @@ static int syscall_yield(StackFrame *frame, int original_sp) {
 
     print("Yielding to process %s\n", ACTIVE_PROCESS->name);
     
-    return ACTIVE_PROCESS->sp;
+    // Return kernel stack top so the SWI assembly sets sp_svc
+    // to the shared kernel stack, not a user stack address.
+    return os_idle_sp;
 }
 
 // SYS_WRITE — write buffer to UART, return to same process
@@ -136,7 +138,9 @@ static int syscall_exit(StackFrame *frame, int original_sp) {
             frame->r[i] = ACTIVE_PROCESS->registers[i];
         frame->lr = ACTIVE_PROCESS->pc;
 
-        return ACTIVE_PROCESS->sp;
+        // Return kernel stack top so the SWI assembly sets sp_svc
+        // to the shared kernel stack, not a user stack address.
+        return os_idle_sp;
     }
 
     extern void hang(void);
@@ -148,7 +152,9 @@ void context_switch(StackFrame * frame, int quantums, int is_irq, int original_s
     static int initial_launch_traced = 0;
 
     // === TRACE: USER_TO_KERNEL timer_irq ===
-    if (is_irq && ACTIVE_PROCESS != 0) {
+    // Only trace for real user processes (pid != 0).
+    // pid=0 is the OS idle loop running in SVC mode, not a user process.
+    if (is_irq && ACTIVE_PROCESS != 0 && ACTIVE_PROCESS->pid != 0) {
         print("MODE_SWITCH USER_TO_KERNEL pid=%d reason=timer_irq\n",
               ACTIVE_PROCESS->pid);
     }
@@ -181,7 +187,15 @@ void context_switch(StackFrame * frame, int quantums, int is_irq, int original_s
     // Save current process
     if (ACTIVE_PROCESS != 0) {
         save_process_state(ACTIVE_PROCESS, frame, is_irq, original_sp);
-        move_process(ACTIVE_PROCESS, READY);
+
+        // OS idle process (pid=0): terminate instead of moving to READY.
+        // This prevents pid=0 from being dispatched as a user process,
+        // which would cause a PERMISSION fault (violates Section 3.2).
+        if (ACTIVE_PROCESS->pid == 0) {
+            move_process(ACTIVE_PROCESS, TERMINATED);
+        } else {
+            move_process(ACTIVE_PROCESS, READY);
+        }
         ACTIVE_PROCESS = 0;
     }
 

@@ -21,7 +21,7 @@ int main() {
     print("Inicializada cola de procesos\n");
 
     initialize_processes();
-    print("Procesos creados: P1, P2, P3 y OS\n");
+    print("Procesos creados: P1, P2, P3\n");
 
     PCB *next_ready = &QUEUE->ready_pool[0];
     move_process(next_ready, RUNNING);

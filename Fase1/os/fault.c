@@ -94,13 +94,21 @@ int fault_c_handler(void *frame, unsigned int fsr, unsigned int far, int is_pref
             f->r[i] = ACTIVE_PROCESS->registers[i];
         f->lr = ACTIVE_PROCESS->pc;
 
+        // Set next_spsr so the assembly fault handler uses the correct
+        // SPSR for the exception return (e.g. 0x10 for USR mode).
+        // Without this, a stale value from a previous IRQ dispatch
+        // could corrupt the mode on fault_recovery.
+        next_spsr = ACTIVE_PROCESS->spsr;
+
         // === TRACE: KERNEL_TO_USER fault_recovery ===
         if (ACTIVE_PROCESS != 0) {
             print("MODE_SWITCH KERNEL_TO_USER pid=%d reason=fault_recovery\n",
                   ACTIVE_PROCESS->pid);
         }
 
-        return ACTIVE_PROCESS->sp;
+        // Return kernel stack top so the assembly fault handler sets
+        // sp_svc to the shared kernel stack, not a user stack address.
+        return os_idle_sp;
     }
 
     // No ready processes — set frame->lr to a safe halt point and return os_idle_sp

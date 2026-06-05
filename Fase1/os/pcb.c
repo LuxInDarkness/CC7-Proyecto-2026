@@ -1,6 +1,7 @@
 #include "pcb.h"
 
 int next_spsr = 0;
+extern int os_idle_sp;  // Kernel SVC stack top captured at boot
 
 #define INITIAL_CONTEXT_WORDS 14u
 
@@ -40,7 +41,12 @@ void setup_initial_process_stack(PCB *pcb, unsigned int stack_top) {
 
     frame[13] = (unsigned int)pcb->entry;
 
-    pcb->sp = (int)frame;
+    // Kernel stack pointer: always point to the shared kernel SVC stack.
+    // ARM register banking preserves SP_usr across exceptions, so the user
+    // stack does NOT need to be saved/restored via pcb->sp.
+    // Using os_idle_sp prevents SVC handler stack usage from corrupting
+    // the user process's stack frames.
+    pcb->sp = os_idle_sp;
     pcb->pc = (int)pcb->entry;
     pcb->lr = (int)pcb->entry;
     
@@ -62,7 +68,9 @@ void restore_process_state(PCB *pcb, StackFrame *frame) {
     for (int i = 0; i < 13; i++)
         frame->r[i] = pcb->registers[i];
     frame->lr = pcb->pc;   // subs pc, lr, #0 will jump here on return
-    write_svc_sp(pcb->sp);
+    // Always reset SVC SP to the shared kernel stack top.
+    // User stack (SP_usr) is preserved by ARM banked registers.
+    write_svc_sp(os_idle_sp);
     next_spsr = pcb->spsr;
 }
 
