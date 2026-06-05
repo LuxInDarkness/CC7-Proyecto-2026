@@ -24,9 +24,25 @@ vector_table:
     b fiq_handler        @ 0x1C: FIQ (Fast Interrupt Request)
 
 @ ===========================================================================
-@ Reset Handler — entry point after power-on or hardware reset
+@ Reset Handler — entry point after power-on, hardware reset, or U-Boot 'go'
+@
+@ When booting via 'go' from U-Boot, the MMU is already enabled with a 1:1
+@ mapping for DDR. We keep the MMU as-is — disabling it mid-execution while
+@ running from a virtually-mapped region causes instant aborts. U-Boot's 1:1
+@ mapping is exactly what we want for bare-metal.
 @ ===========================================================================
 reset_handler:
+    @ -----------------------------------------------------------------------
+    @ 0. Invalidate instruction cache.  U-Boot may have cached stale
+    @    instructions from the 0x82000000 region before loading our binary.
+    @    Without this the CPU could execute cached garbage instead of our
+    @    freshly-loaded code.  We do NOT touch the MMU or data cache.
+    @ -----------------------------------------------------------------------
+    mov r0, #0
+    mcr p15, 0, r0, c7, c5, 0     @ ICIALLU — invalidate entire I-cache to PoU
+    dsb
+    isb
+
     @ -----------------------------------------------------------------------
     @ 1. Set up IRQ mode stack.
     @    The CPU has banked registers per mode — SP_irq is a separate register
@@ -235,6 +251,48 @@ PUT32:
 GET32:
     ldr r0, [r0]                @ r0 = *r0
     bx  lr
+
+@ ===========================================================================
+@ enter_first_task — explicit kernel-to-user transition (Spec Section 3.4)
+@
+@ r0 = user stack pointer  (SP_usr)
+@ r1 = user program counter (entry point)
+@ r2 = target SPSR          (0x10 = USR mode, IRQ enabled)
+@
+@ Constructs the first user context and does an exception-style return
+@ into USR mode.  Never returns to the caller.
+@ ===========================================================================
+.globl enter_first_task
+enter_first_task:
+    msr   spsr_cxsf, r2          @ SPSR_svc = target SPSR (USR mode)
+
+    @ Write SP_usr — switch to USR mode, set SP, switch back
+    mrs   r3, cpsr
+    cpsid i, #0x10               @ disable IRQ, switch to USR
+    mov   sp, r0                  @ SP_usr = user stack
+    msr   cpsr_c, r3              @ back to SVC mode
+
+    @ Set LR_svc for exception return
+    mov   lr, r1
+
+    @ Zero out r0-r12
+    mov   r0, #0
+    mov   r1, #0
+    mov   r2, #0
+    mov   r3, #0
+    mov   r4, #0
+    mov   r5, #0
+    mov   r6, #0
+    mov   r7, #0
+    mov   r8, #0
+    mov   r9, #0
+    mov   r10, #0
+    mov   r11, #0
+    mov   r12, #0
+
+    @ Exception return: CPSR <- SPSR_svc, PC <- LR_svc
+    @ CPU enters USR mode with IRQs enabled (per SPSR bit 7 = 0)
+    movs  pc, lr
 
 @ ===========================================================================
 @ Enable IRQs

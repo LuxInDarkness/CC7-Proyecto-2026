@@ -34,3 +34,25 @@ int read_spsr_svc(void) {
     __asm__ volatile("mrs %0, spsr" : "=r"(spsr));
     return spsr;
 }
+
+int read_usr_sp(void) {
+    int sp;
+    __asm__ volatile (
+        "mrs r1, cpsr\n"          // save current CPSR
+        "cpsid i, #0x10\n"        // disable IRQ, switch to USR mode
+        "mov %0, sp\n"            // read SP_usr
+        "msr cpsr_c, r1\n"        // restore original CPSR (mode + I/F flags)
+        : "=r"(sp) : : "r1", "memory"
+    );
+    return sp;
+}
+
+void write_usr_sp(int sp) {
+    __asm__ volatile (
+        "mrs r1, cpsr\n"
+        "cpsid i, #0x10\n"
+        "mov sp, %0\n"
+        "msr cpsr_c, r1\n"
+        : : "r"(sp) : "r1", "memory"
+    );
+}

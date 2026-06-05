@@ -37,7 +37,7 @@ void timer_init(unsigned int load_value) {
 void timer_irq_handler(StackFrame * frame) {
     // Clear the timer interrupt
     PUT32(ACCESS->TISR, 0x2);
-    context_switch(frame, 1, 1, 0);
+    context_switch(frame, 1, 1);
     PUT32(ACCESS->INTC_CONTROL, 0x1);
 }
 
