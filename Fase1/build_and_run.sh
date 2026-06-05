@@ -106,3 +106,6 @@ if [ "$FOLDER" == "qemu" ]; then
     echo "Running OS image on QEMU."
     qemu-system-arm $RUN_FLAGS -kernel bin/os.elf -device driver=loader,file=bin/p1.elf -device driver=loader,file=bin/p2.elf -device driver=loader,file=bin/p3.elf
 fi
+
+arm-none-eabi-nm bin/os.elf | grep -E "write|uart_putc|os_write|vprint|print"
+arm-none-eabi-objdump -d bin/os.elf | grep -A5 "bl.*write\|bl.*print\|bl.*uart"
