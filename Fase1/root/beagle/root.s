@@ -27,6 +27,21 @@ vector_table:
 @ Reset Handler — entry point after power-on or hardware reset
 @ ===========================================================================
 reset_handler:
+    @Cache flush and MMU disable sequence adapted from ARMv7-A Architecture Reference Manual,
+    @section B1.5.2 "Disabling the MMU and Caches".
+    mov   r0, #0
+    mcr   p15, 0, r0, c7, c5, 0    @ ICIALLU — invalidate I-cache
+    mcr   p15, 0, r0, c7, c10, 4   @ DSB
+    mcr   p15, 0, r0, c7, c5, 4    @ ISB
+
+    mrc   p15, 0, r0, c1, c0, 0
+    bic   r0, r0, #(1 << 13)       @ clear V bit
+    bic   r0, r0, #(1 << 12)       @ disable I-cache
+    bic   r0, r0, #(1 << 2)        @ disable D-cache
+    bic   r0, r0, #(1 << 0)        @ disable MMU
+    mcr   p15, 0, r0, c1, c0, 0
+    mcr   p15, 0, r0, c7, c5, 4    @ ISB
+
     @ -----------------------------------------------------------------------
     @ 1. Set up IRQ mode stack.
     @    The CPU has banked registers per mode — SP_irq is a separate register
